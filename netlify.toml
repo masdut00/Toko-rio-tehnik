@@ -1,0 +1,6 @@
+[build]
+  # Ini perintah sakti: Kosongkan command agar Netlify tidak mencoba build
+  command = "" 
+  
+  # Beritahu Netlify bahwa file index.html ada di folder utama (root)
+  publish = "/"
