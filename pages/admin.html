@@ -17,23 +17,60 @@
 </head>
 <body>
 
-    <nav class="navbar navbar-expand bg-dark navbar-dark mb-3 px-3">
-        <span class="navbar-brand fw-bold mb-0 h1">ADMIN CONTROL</span>
-        <div class="ms-auto">
-            <button onclick="logout()" class="btn btn-sm btn-outline-light">Keluar</button>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3 shadow">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-shield-lock"></i> ADMIN CONTROL
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarAdminContent">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarAdminContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 nav-pills" id="adminTab" role="tablist">
+                    
+                    <li class="nav-item">
+                        <button class="nav-link active text-white" data-bs-toggle="tab" data-bs-target="#tab-dash" type="button">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </button>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <button class="nav-link text-white" data-bs-toggle="tab" data-bs-target="#tab-master" onclick="loadMaster()" type="button">
+                            <i class="bi bi-box-seam"></i> Barang
+                        </button>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <button class="nav-link text-white" data-bs-toggle="tab" data-bs-target="#tab-trx" onclick="loadTrx()" type="button">
+                            <i class="bi bi-receipt"></i> Transaksi
+                        </button>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <button class="nav-link text-white" data-bs-toggle="tab" data-bs-target="#tab-mutasi" onclick="loadMutasi()" type="button">
+                            <i class="bi bi-arrow-left-right"></i> Mutasi
+                        </button>
+                    </li>
+
+                    <li class="nav-item">
+                        <button class="nav-link text-white" data-bs-toggle="tab" data-bs-target="#tab-rekap" onclick="loadRekap()" type="button">
+                            <i class="bi bi-file-earmark-bar-graph"></i> Rekap
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="d-flex">
+                    <button onclick="logout()" class="btn btn-danger btn-sm fw-bold w-100 mt-2 mt-lg-0">
+                        <i class="bi bi-box-arrow-right"></i> Keluar
+                    </button>
+                </div>
+            </div>
         </div>
     </nav>
 
     <div class="container-fluid px-4">
-        
-        <ul class="nav nav-tabs mb-3" id="adminTab" role="tablist">
-            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dash">Dashboard</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-master" onclick="loadMaster()">Master Barang</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trx" onclick="loadTrx()">Riwayat Transaksi</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-mutasi" onclick="loadMutasi()">Log Mutasi</button></li>
-            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rekap" onclick="loadRekap()">Rekap Bulanan</button></li>
-        </ul>
-
         <div class="tab-content">
             
             <div class="tab-pane fade show active" id="tab-dash">
