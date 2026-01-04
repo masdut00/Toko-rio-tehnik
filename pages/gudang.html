@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Gudang</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card-stok { transition: 0.2s; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .card-stok:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-secondary mb-4">
+        <div class="container">
+            <span class="navbar-brand fw-bold"><i class="bi bi-building-gear"></i> GUDANG PUSAT</span>
+            <button onclick="logout()" class="btn btn-sm btn-dark">Keluar</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row mb-4">
+            <div class="col-md-8 mx-auto">
+                <div class="input-group">
+                    <input type="text" id="keyword" class="form-control form-control-lg" placeholder="Cari nama barang..." onkeypress="if(event.key==='Enter') loadData()">
+                    <button class="btn btn-dark" onclick="loadData()">Cari Data</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive bg-white p-3 rounded shadow-sm">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Barang</th>
+                        <th class="text-center bg-light border-start">STOK GUDANG</th>
+                        <th class="text-center text-muted small">Toko 1</th>
+                        <th class="text-center text-muted small">Toko 2</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tabel-body">
+                    </tbody>
+            </table>
+            <div id="loading" class="text-center d-none p-3">
+                <div class="spinner-border text-secondary"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalMutasi" aria-labelledby="modalTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="modalTitle">Atur Stok</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="idBarangPilih">
+                    <p class="text-muted mb-1">Barang:</p>
+                    <h5 id="namaBarangPilih" class="fw-bold mb-3">...</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label">Jenis Aksi</label>
+                        <select id="jenisAksi" class="form-select" onchange="cekJenisAksi()">
+                            <option value="MASUK_SUPPLIER">📥 Terima Barang (Dari Supplier)</option>
+                            <option value="KIRIM_TOKO">🚚 Kirim ke Toko (Distribusi)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="blokTujuan">
+                        <label class="form-label">Kirim Ke</label>
+                        <select id="tujuanToko" class="form-select">
+                            <option value="Toko1">Toko 1</option>
+                            <option value="Toko2">Toko 2</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Jumlah</label>
+                        <input type="number" id="jumlahInput" class="form-control form-control-lg" placeholder="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-primary" onclick="simpanMutasi()">SIMPAN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Cek Login
+        if (localStorage.getItem("user_lokasi") !== "Gudang" && localStorage.getItem("user_lokasi") !== "All") {
+             // Jika bukan gudang, tendang (opsional, matikan dulu saat dev)
+             // window.location.href = "../index.html";
+        }
+
+        let modalMutasi;
+        window.onload = function() {
+            modalMutasi = new bootstrap.Modal(document.getElementById('modalMutasi'));
+            loadData(""); // Load semua data saat awal
+        }
+
+        async function loadData() {
+            const key = document.getElementById('keyword').value;
+            document.getElementById('tabel-body').innerHTML = "";
+            document.getElementById('loading').classList.remove('d-none');
+
+            // Kita pakai fungsi 'cariBarang' yg sama dgn toko, karena datanya sama
+            const respon = await requestKeGoogle('cariBarang', { keyword: key });
+            
+            document.getElementById('loading').classList.add('d-none');
+
+            if(respon.status === "SUKSES") {
+                let html = "";
+                respon.data.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>
+                                <div class="fw-bold">${item.nama}</div>
+                                <small class="text-muted">${item.id}</small>
+                            </td>
+                            <td class="text-center fw-bold fs-5 bg-light border-start text-primary">${item.stok_gudang}</td>
+                            <td class="text-center text-muted">${item.stok_toko1}</td>
+                            <td class="text-center text-muted">${item.stok_toko2}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-dark" 
+                                    onclick="bukaModal('${item.id}', '${item.nama}')">
+                                    <i class="bi bi-gear"></i> Atur
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('tabel-body').innerHTML = html;
+            }
+        }
+
+        function bukaModal(id, nama) {
+            document.getElementById('idBarangPilih').value = id;
+            document.getElementById('namaBarangPilih').innerText = nama;
+            document.getElementById('jumlahInput').value = "";
+            modalMutasi.show();
+        }
+
+        function cekJenisAksi() {
+            const jenis = document.getElementById('jenisAksi').value;
+            const blok = document.getElementById('blokTujuan');
+            if(jenis === 'KIRIM_TOKO') blok.classList.remove('d-none');
+            else blok.classList.add('d-none');
+        }
+
+        async function simpanMutasi() {
+            const id = document.getElementById('idBarangPilih').value;
+            const jenis = document.getElementById('jenisAksi').value;
+            const jumlah = document.getElementById('jumlahInput').value;
+            const tujuan = document.getElementById('tujuanToko').value;
+
+            if(!jumlah || jumlah <= 0) return alert("Jumlah wajib diisi!");
+
+            // UI Loading tombol
+            const btn = document.querySelector('.modal-footer .btn-primary');
+            btn.innerHTML = "Menyimpan...";
+            btn.disabled = true;
+
+            const payload = {
+                idBarang: id,
+                jenis: jenis, // MASUK_SUPPLIER atau KIRIM_TOKO
+                jumlah: jumlah,
+                tujuan: tujuan
+            };
+
+            const respon = await requestKeGoogle('prosesMutasi', { payload: payload });
+
+            if(respon.status === "SUKSES") {
+                alert("✅ Stok Berhasil Diupdate!");
+                modalMutasi.hide();
+                loadData(); // Refresh tabel
+            } else {
+                alert("❌ Gagal: " + respon.pesan);
+            }
+
+            btn.innerHTML = "SIMPAN";
+            btn.disabled = false;
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = "../index.html";
+        }
+    </script>
+</body>
+</html>

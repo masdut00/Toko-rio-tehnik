@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Keuangan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f0f2f5; }
+        .card-omset { background: linear-gradient(45deg, #0d6efd, #0a58ca); color: white; border: none; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-primary mb-4">
+        <div class="container">
+            <span class="navbar-brand fw-bold"><i class="bi bi-graph-up"></i> LAPORAN</span>
+            <button onclick="window.location.href='../index.html'" class="btn btn-sm btn-light text-primary">Home</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <h6 class="text-muted mb-3">Ringkasan Hari Ini</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card card-omset shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="opacity-75">Total Omset</small>
+                            <h2 class="fw-bold m-0" id="txtOmset">Rp 0</h2>
+                        </div>
+                        <div class="text-end">
+                            <small class="opacity-75">Transaksi</small>
+                            <h4 class="fw-bold m-0" id="txtJumlah">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-muted m-0">20 Transaksi Terakhir</h6>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadLaporan()"><i class="bi bi-arrow-clockwise"></i></button>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <ul class="list-group list-group-flush" id="listRiwayat">
+                <li class="list-group-item text-center py-4 text-muted">Memuat data...</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <script src="../assets/js/api.js"></script>
+    <script>
+        // Saat halaman dibuka, langsung ambil data
+        window.onload = function() {
+            loadLaporan();
+        };
+
+        async function loadLaporan() {
+            document.getElementById('listRiwayat').innerHTML = '<li class="list-group-item text-center py-4 text-muted">Memuat data...</li>';
+            
+            const respon = await requestKeGoogle('getLaporan');
+
+            if(respon.status === "SUKSES") {
+                // 1. Update Kartu Omset
+                let rupiah = new Intl.NumberFormat('id-ID').format(respon.summary.omset);
+                document.getElementById('txtOmset').innerText = "Rp " + rupiah;
+                document.getElementById('txtJumlah').innerText = respon.summary.jumlah;
+
+                // 2. Update List Riwayat
+                let html = "";
+                if(respon.list.length === 0) {
+                    html = '<li class="list-group-item text-center">Belum ada transaksi hari ini.</li>';
+                } else {
+                    respon.list.forEach(trx => {
+                        let subtotal = new Intl.NumberFormat('id-ID').format(trx.total);
+                        // Ubah format waktu Google (ISO) jadi Jam:Menit
+                        let jam = new Date(trx.waktu).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+                        
+                        // Tentukan warna badge lokasi
+                        let badgeColor = trx.lokasi === 'Toko1' ? 'text-bg-primary' : 'text-bg-success';
+
+                        html += `
+                        <li class="list-group-item p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div>
+                                    <span class="badge ${badgeColor} me-1">${trx.lokasi}</span>
+                                    <span class="fw-bold text-dark">${trx.namaBarang}</span>
+                                </div>
+                                <div class="fw-bold text-primary">Rp ${subtotal}</div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small">
+                                <span>${trx.noStruk} • ${trx.kasir}</span>
+                                <span>${trx.qty} pcs • ${jam}</span>
+                            </div>
+                        </li>
+                        `;
+                    });
+                }
+                document.getElementById('listRiwayat').innerHTML = html;
+            } else {
+                alert("Gagal memuat laporan.");
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f6f9; font-size: 0.9rem; }
+        .nav-tabs .nav-link.active { font-weight: bold; border-top: 3px solid #0d6efd; color: #0d6efd; }
+        .nav-link { color: #6c757d; }
+        .card-stat { border: none; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand bg-dark navbar-dark mb-3 px-3">
+        <span class="navbar-brand fw-bold mb-0 h1">ADMIN CONTROL</span>
+        <div class="ms-auto">
+            <button onclick="logout()" class="btn btn-sm btn-outline-light">Keluar</button>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        
+        <ul class="nav nav-tabs mb-3" id="adminTab" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dash">Dashboard</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-master" onclick="loadMaster()">Master Barang</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trx" onclick="loadTrx()">Riwayat Transaksi</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-mutasi" onclick="loadMutasi()">Log Mutasi</button></li>
+        </ul>
+
+        <div class="tab-content">
+            
+            <div class="tab-pane fade show active" id="tab-dash">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card card-stat bg-primary text-white p-3">
+                            <small>Omset Hari Ini</small>
+                            <h3 class="fw-bold mt-2" id="dashOmset">Rp 0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card card-stat bg-white p-3">
+                            <small class="text-muted">Total Transaksi</small>
+                            <h3 class="fw-bold mt-2" id="dashTrx">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-master">
+                <div class="d-flex justify-content-between mb-3">
+                    <div class="input-group w-50">
+                        <input type="text" id="cariMaster" class="form-control" placeholder="Cari..." onkeypress="if(event.key==='Enter') loadMaster()">
+                        <button class="btn btn-secondary" onclick="loadMaster()"><i class="bi bi-search"></i></button>
+                    </div>
+                    <button class="btn btn-primary fw-bold" onclick="bukaModalTambah()"><i class="bi bi-plus-lg"></i> BARANG BARU</button>
+                </div>
+                <div class="bg-white rounded shadow-sm p-0 table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr><th>ID</th><th>Nama</th><th>Kategori</th><th>Modal</th><th>Jual</th><th>Aksi</th></tr>
+                        </thead>
+                        <tbody id="tabel-master"><tr><td colspan="6" class="text-center py-3">Memuat...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-trx">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadTrx()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="bg-white rounded shadow-sm table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Waktu</th><th>Struk</th><th>Lokasi</th><th>Item</th><th>Total</th><th>Kasir</th></tr>
+                        </thead>
+                        <tbody id="tabel-trx"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab-mutasi">
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadMutasi()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                </div>
+                <div class="bg-white rounded shadow-sm table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Waktu</th><th>Jenis</th><th>Barang</th><th>Jml</th><th>Dari -> Ke</th><th>Petugas</th></tr>
+                        </thead>
+                        <tbody id="tabel-mutasi"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalBarang" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">Form Barang</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="modeForm">
+                    
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label small text-muted">ID Barang</label>
+                            <input type="text" id="inpId" class="form-control bg-light fw-bold" readonly placeholder="AUTO">
+                            <div class="form-text" style="font-size: 0.7rem">Otomatis</div>
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label small text-muted">Kategori</label>
+                            <div class="input-group">
+                                <select id="selKategori" class="form-select" onchange="cekKategoriLain()">
+                                    <option value="">- Pilih -</option>
+                                </select>
+                            </div>
+                            <input type="text" id="inpKategoriLain" class="form-control mt-1 d-none" placeholder="Ketik kategori baru...">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Nama Barang</label>
+                        <input type="text" id="inpNama" class="form-control">
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Modal (Beli)</label>
+                            <input type="number" id="inpModal" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Jual</label>
+                            <input type="number" id="inpJual" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Satuan</label>
+                        <select id="inpSatuan" class="form-select">
+                            <option value="Pcs">Pcs</option>
+                            <option value="Set">Set</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Meter">Meter</option>
+                            <option value="Box">Box</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100" onclick="simpanBarang()">SIMPAN DATA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let modalBootstrap;
+
+        window.onload = function() {
+            modalBootstrap = new bootstrap.Modal(document.getElementById('modalBarang'));
+            loadDashboard(); // Load data omset
+        };
+
+        // 1. DASHBOARD & TRX
+        async function loadDashboard() {
+            const respon = await requestKeGoogle('getLaporan');
+            if(respon.status === "SUKSES") {
+                document.getElementById('dashOmset').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(respon.summary.omset);
+                document.getElementById('dashTrx').innerText = respon.summary.jumlah;
+            }
+        }
+
+        async function loadTrx() {
+            document.getElementById('tabel-trx').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+            const respon = await requestKeGoogle('getLaporan'); // Pakai fungsi laporan yg sudah ada
+            if(respon.status === "SUKSES") {
+                let html = "";
+                respon.list.forEach(item => {
+                    let waktu = new Date(item.waktu).toLocaleString('id-ID');
+                    let total = new Intl.NumberFormat('id-ID').format(item.total);
+                    html += `
+                        <tr>
+                            <td class="small">${waktu}</td>
+                            <td class="small fw-bold">${item.noStruk}</td>
+                            <td><span class="badge bg-secondary">${item.lokasi}</span></td>
+                            <td>${item.namaBarang} (${item.qty})</td>
+                            <td class="fw-bold">Rp ${total}</td>
+                            <td class="small text-muted">${item.kasir}</td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('tabel-trx').innerHTML = html;
+            }
+        }
+
+        // 2. MASTER BARANG
+        async function loadMaster() {
+            const key = document.getElementById('cariMaster').value;
+            document.getElementById('tabel-master').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+            const respon = await requestKeGoogle('getMasterBarang', { keyword: key });
+            
+            let html = "";
+            if(respon.status === "SUKSES" && respon.data.length > 0) {
+                respon.data.forEach(item => {
+                    html += `
+                        <tr>
+                            <td><small class="fw-bold text-muted">${item.id}</small></td>
+                            <td>${item.nama}</td>
+                            <td><span class="badge bg-light text-dark border">${item.kategori}</span></td>
+                            <td class="text-danger small">Rp ${new Intl.NumberFormat('id-ID').format(item.modal)}</td>
+                            <td class="text-success fw-bold small">Rp ${new Intl.NumberFormat('id-ID').format(item.jual)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-warning py-0" onclick="edit('${item.id}', '${item.nama}', '${item.kategori}', ${item.modal}, ${item.jual}, '${item.satuan}')"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger py-0" onclick="hapus('${item.id}')"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>`;
+                });
+            } else { html = '<tr><td colspan="6" class="text-center">Data kosong</td></tr>'; }
+            document.getElementById('tabel-master').innerHTML = html;
+        }
+
+        // 3. LOG MUTASI
+        async function loadMutasi() {
+            document.getElementById('tabel-mutasi').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+            const respon = await requestKeGoogle('getLogMutasi');
+            
+            let html = "";
+            if(respon.status === "SUKSES") {
+                respon.data.forEach(item => {
+                    let waktu = new Date(item.waktu).toLocaleString('id-ID');
+                    let badge = item.jenis === "MASUK_SUPPLIER" ? "bg-success" : "bg-warning text-dark";
+                    html += `
+                        <tr>
+                            <td class="small">${waktu}</td>
+                            <td><span class="badge ${badge}">${item.jenis}</span></td>
+                            <td class="fw-bold text-primary">${item.barang}</td>
+                            <td class="fw-bold">${item.jml}</td>
+                            <td class="small">${item.dari} <i class="bi bi-arrow-right"></i> ${item.ke}</td>
+                            <td class="small text-muted">${item.petugas}</td>
+                        </tr>`;
+                });
+            }
+            document.getElementById('tabel-mutasi').innerHTML = html;
+        }
+
+        // 4. LOGIKA MODAL (TAMBAH/EDIT)
+        async function bukaModalTambah() {
+            document.getElementById('modeForm').value = "tambah";
+            
+            // Siapkan Form
+            document.getElementById('inpId').value = "AUTO"; // Tanda bahwa ID akan dibuat backend
+            document.getElementById('inpNama').value = "";
+            document.getElementById('inpModal').value = "";
+            document.getElementById('inpJual').value = "";
+            
+            // Ambil Kategori dari Server
+            const btn = document.querySelector('button[onclick="bukaModalTambah()"]');
+            btn.disabled = true; btn.innerHTML = "...";
+            
+            const dataPendukung = await requestKeGoogle('getDataFormBarang');
+            btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-lg"></i> BARANG BARU';
+
+            // Isi Dropdown
+            isiDropdownKategori(dataPendukung.kategori);
+            
+            modalBootstrap.show();
+        }
+
+        function isiDropdownKategori(listKategori, selected = "") {
+            const sel = document.getElementById('selKategori');
+            sel.innerHTML = '<option value="">- Pilih -</option>';
+            
+            listKategori.forEach(kat => {
+                let opt = document.createElement('option');
+                opt.value = kat;
+                opt.innerText = kat;
+                if(kat === selected) opt.selected = true;
+                sel.appendChild(opt);
+            });
+
+            // Tambah opsi Lainnya
+            let optLain = document.createElement('option');
+            optLain.value = "LAINNYA";
+            optLain.innerText = "+ Tambah Baru...";
+            sel.appendChild(optLain);
+            
+            cekKategoriLain();
+        }
+
+        function cekKategoriLain() {
+            const val = document.getElementById('selKategori').value;
+            const inp = document.getElementById('inpKategoriLain');
+            if(val === "LAINNYA") {
+                inp.classList.remove('d-none');
+                inp.focus();
+            } else {
+                inp.classList.add('d-none');
+            }
+        }
+
+        function edit(id, nama, kategori, modal, jual, satuan) {
+            document.getElementById('modeForm').value = "edit";
+            document.getElementById('inpId').value = id; // ID Asli
+            document.getElementById('inpNama').value = nama;
+            document.getElementById('inpModal').value = modal;
+            document.getElementById('inpJual').value = jual;
+            document.getElementById('inpSatuan').value = satuan;
+
+            // Kategori agak tricky, kita isi dropdown manual dulu lalu set value
+            // Idealnya ambil data terbaru, tapi agar cepat kita set opsi kategori yg ada saja
+            const sel = document.getElementById('selKategori');
+            sel.innerHTML = `<option value="${kategori}" selected>${kategori}</option><option value="LAINNYA">Ganti Lain...</option>`;
+            
+            modalBootstrap.show();
+        }
+
+        async function simpanBarang() {
+            const mode = document.getElementById('modeForm').value;
+            const id = document.getElementById('inpId').value;
+            const nama = document.getElementById('inpNama').value;
+            
+            // Logika Kategori (Dropdown vs Ketik Manual)
+            let kategori = document.getElementById('selKategori').value;
+            if(kategori === "LAINNYA") {
+                kategori = document.getElementById('inpKategoriLain').value;
+            }
+            if(!kategori) return alert("Pilih kategori!");
+
+            const payload = {
+                id: id,
+                nama: nama,
+                kategori: kategori,
+                modal: document.getElementById('inpModal').value,
+                jual: document.getElementById('inpJual').value,
+                satuan: document.getElementById('inpSatuan').value
+            };
+
+            const btn = document.querySelector('.modal-footer .btn-primary');
+            btn.disabled = true; btn.innerText = "Menyimpan...";
+            
+            let action = (mode === "tambah") ? "tambahBarang" : "editBarang";
+            const respon = await requestKeGoogle(action, { payload: payload });
+
+            if(respon.status === "SUKSES") {
+                alert("Berhasil!");
+                modalBootstrap.hide();
+                loadMaster();
+            } else {
+                alert("Gagal: " + respon.pesan);
+            }
+            btn.disabled = false; btn.innerText = "SIMPAN DATA";
+        }
+        
+        async function hapus(id) {
+             if(confirm("Hapus " + id + "?")) {
+                 await requestKeGoogle('hapusBarang', { id: id });
+                 loadMaster();
+             }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = "../index.html"; }
+    </script>
+</body>
+</html>
