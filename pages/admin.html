@@ -34,7 +34,7 @@
         <div class="tab-content">
             
             <div class="tab-pane fade show active" id="tab-dash">
-                <div class="row g-3">
+                <div class="row g-3 mb-4">
                     <div class="col-md-6 col-lg-3">
                         <div class="card card-stat bg-primary text-white p-3">
                             <small>Omset Hari Ini</small>
@@ -48,7 +48,38 @@
                         </div>
                     </div>
                 </div>
-            </div>
+
+                <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-door-open"></i> Akses Operasional</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100 border-0 cursor-pointer" onclick="masukSebagai('Toko1')">
+                            <div class="card-body text-center p-4">
+                                <i class="bi bi-shop display-4 text-primary"></i>
+                                <h5 class="fw-bold mt-3">Masuk Toko 1</h5>
+                                <small class="text-muted">Buka mesin kasir Toko 1</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100 border-0 cursor-pointer" onclick="masukSebagai('Toko2')">
+                            <div class="card-body text-center p-4">
+                                <i class="bi bi-shop-window display-4 text-success"></i>
+                                <h5 class="fw-bold mt-3">Masuk Toko 2</h5>
+                                <small class="text-muted">Buka mesin kasir Toko 2</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100 border-0 cursor-pointer" onclick="masukSebagai('Gudang')">
+                            <div class="card-body text-center p-4">
+                                <i class="bi bi-boxes display-4 text-warning"></i>
+                                <h5 class="fw-bold mt-3">Masuk Gudang</h5>
+                                <small class="text-muted">Kelola stok fisik gudang</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>  
 
             <div class="tab-pane fade" id="tab-master">
                 <div class="d-flex justify-content-between mb-3">
@@ -163,14 +194,41 @@
     <script src="../assets/js/api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // --- 1. CEK KEAMANAN & INISIALISASI ---
+        const role = localStorage.getItem("user_role");
+        
+        // Jika BUKAN Owner, tendang ke login
+        if (role !== "OWNER") {
+            alert("Anda tidak memiliki akses Admin!");
+            window.location.href = "../index.html";
+        }
+        
         let modalBootstrap;
 
         window.onload = function() {
             modalBootstrap = new bootstrap.Modal(document.getElementById('modalBarang'));
-            loadDashboard(); // Load data omset
+            loadDashboard(); // Load data omset saat pertama buka
         };
 
-        // 1. DASHBOARD & TRX
+        function logout() {
+            localStorage.clear();
+            window.location.href = "../index.html";
+        }
+
+        // --- 2. FITUR AKSES CEPAT (ADMIN MASUK KE TOKO/GUDANG) ---
+        function masukSebagai(tujuanLokasi) {
+            // Kita set lokasi sementara di browser agar halaman tujuan menerima kita
+            localStorage.setItem("user_lokasi", tujuanLokasi);
+            
+            if (tujuanLokasi === "Gudang") {
+                window.location.href = "gudang.html";
+            } else {
+                // Toko1 atau Toko2
+                window.location.href = "toko.html";
+            }
+        }
+
+        // --- 3. DASHBOARD & TRX ---
         async function loadDashboard() {
             const respon = await requestKeGoogle('getLaporan');
             if(respon.status === "SUKSES") {
@@ -181,7 +239,8 @@
 
         async function loadTrx() {
             document.getElementById('tabel-trx').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
-            const respon = await requestKeGoogle('getLaporan'); // Pakai fungsi laporan yg sudah ada
+            const respon = await requestKeGoogle('getLaporan'); 
+            
             if(respon.status === "SUKSES") {
                 let html = "";
                 respon.list.forEach(item => {
@@ -202,10 +261,11 @@
             }
         }
 
-        // 2. MASTER BARANG
+        // --- 4. MASTER BARANG ---
         async function loadMaster() {
             const key = document.getElementById('cariMaster').value;
             document.getElementById('tabel-master').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+            
             const respon = await requestKeGoogle('getMasterBarang', { keyword: key });
             
             let html = "";
@@ -224,11 +284,13 @@
                             </td>
                         </tr>`;
                 });
-            } else { html = '<tr><td colspan="6" class="text-center">Data kosong</td></tr>'; }
+            } else { 
+                html = '<tr><td colspan="6" class="text-center">Data kosong / Tidak ditemukan.</td></tr>'; 
+            }
             document.getElementById('tabel-master').innerHTML = html;
         }
 
-        // 3. LOG MUTASI
+        // --- 5. LOG MUTASI ---
         async function loadMutasi() {
             document.getElementById('tabel-mutasi').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
             const respon = await requestKeGoogle('getLogMutasi');
@@ -252,26 +314,38 @@
             document.getElementById('tabel-mutasi').innerHTML = html;
         }
 
-        // 4. LOGIKA MODAL (TAMBAH/EDIT)
+        // --- 6. LOGIKA MODAL (TAMBAH/EDIT) ---
         async function bukaModalTambah() {
             document.getElementById('modeForm').value = "tambah";
             
-            // Siapkan Form
-            document.getElementById('inpId').value = "AUTO"; // Tanda bahwa ID akan dibuat backend
+            // Reset Form
+            document.getElementById('inpId').value = "AUTO"; 
             document.getElementById('inpNama').value = "";
             document.getElementById('inpModal').value = "";
             document.getElementById('inpJual').value = "";
+            document.getElementById('inpKategoriLain').classList.add('d-none');
             
-            // Ambil Kategori dari Server
+            // Loading Button saat mengambil kategori
             const btn = document.querySelector('button[onclick="bukaModalTambah()"]');
-            btn.disabled = true; btn.innerHTML = "...";
+            const txtAsli = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = "Loading...";
             
-            const dataPendukung = await requestKeGoogle('getDataFormBarang');
-            btn.disabled = false; btn.innerHTML = '<i class="bi bi-plus-lg"></i> BARANG BARU';
+            try {
+                // Request Kategori dari Google
+                const dataPendukung = await requestKeGoogle('getDataFormBarang');
+                
+                // Cek Safety (Biar gak error forEach undefined)
+                if (dataPendukung && dataPendukung.status === "SUKSES" && dataPendukung.kategori) {
+                    isiDropdownKategori(dataPendukung.kategori);
+                } else {
+                    isiDropdownKategori([]); // Isi kosong jika gagal
+                }
+            } catch (e) {
+                console.error(e);
+                isiDropdownKategori([]);
+            }
 
-            // Isi Dropdown
-            isiDropdownKategori(dataPendukung.kategori);
-            
+            btn.disabled = false; btn.innerHTML = txtAsli;
             modalBootstrap.show();
         }
 
@@ -279,13 +353,15 @@
             const sel = document.getElementById('selKategori');
             sel.innerHTML = '<option value="">- Pilih -</option>';
             
-            listKategori.forEach(kat => {
-                let opt = document.createElement('option');
-                opt.value = kat;
-                opt.innerText = kat;
-                if(kat === selected) opt.selected = true;
-                sel.appendChild(opt);
-            });
+            if (Array.isArray(listKategori)) {
+                listKategori.forEach(kat => {
+                    let opt = document.createElement('option');
+                    opt.value = kat;
+                    opt.innerText = kat;
+                    if(kat === selected) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }
 
             // Tambah opsi Lainnya
             let optLain = document.createElement('option');
@@ -309,14 +385,14 @@
 
         function edit(id, nama, kategori, modal, jual, satuan) {
             document.getElementById('modeForm').value = "edit";
-            document.getElementById('inpId').value = id; // ID Asli
+            document.getElementById('inpId').value = id; 
             document.getElementById('inpNama').value = nama;
             document.getElementById('inpModal').value = modal;
             document.getElementById('inpJual').value = jual;
             document.getElementById('inpSatuan').value = satuan;
+            document.getElementById('inpKategoriLain').classList.add('d-none');
 
-            // Kategori agak tricky, kita isi dropdown manual dulu lalu set value
-            // Idealnya ambil data terbaru, tapi agar cepat kita set opsi kategori yg ada saja
+            // Set Dropdown manual sementara agar cepat
             const sel = document.getElementById('selKategori');
             sel.innerHTML = `<option value="${kategori}" selected>${kategori}</option><option value="LAINNYA">Ganti Lain...</option>`;
             
@@ -325,18 +401,20 @@
 
         async function simpanBarang() {
             const mode = document.getElementById('modeForm').value;
-            const id = document.getElementById('inpId').value;
-            const nama = document.getElementById('inpNama').value;
             
-            // Logika Kategori (Dropdown vs Ketik Manual)
+            // Validasi input
+            const nama = document.getElementById('inpNama').value;
+            if(!nama) return alert("Nama barang wajib diisi!");
+
+            // Logika Kategori 
             let kategori = document.getElementById('selKategori').value;
             if(kategori === "LAINNYA") {
                 kategori = document.getElementById('inpKategoriLain').value;
             }
-            if(!kategori) return alert("Pilih kategori!");
+            if(!kategori || kategori === "") return alert("Pilih atau isi kategori!");
 
             const payload = {
-                id: id,
+                id: document.getElementById('inpId').value,
                 nama: nama,
                 kategori: kategori,
                 modal: document.getElementById('inpModal').value,
@@ -351,23 +429,21 @@
             const respon = await requestKeGoogle(action, { payload: payload });
 
             if(respon.status === "SUKSES") {
-                alert("Berhasil!");
+                alert("✅ Data berhasil disimpan!");
                 modalBootstrap.hide();
-                loadMaster();
+                loadMaster(); // Refresh tabel
             } else {
-                alert("Gagal: " + respon.pesan);
+                alert("❌ Gagal: " + respon.pesan);
             }
             btn.disabled = false; btn.innerText = "SIMPAN DATA";
         }
         
         async function hapus(id) {
-             if(confirm("Hapus " + id + "?")) {
+             if(confirm("Yakin hapus barang " + id + "? Data stok juga akan hilang.")) {
                  await requestKeGoogle('hapusBarang', { id: id });
                  loadMaster();
              }
         }
-
-        function logout() { localStorage.clear(); window.location.href = "../index.html"; }
     </script>
 </body>
 </html>

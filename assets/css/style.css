@@ -50,3 +50,22 @@ body {
     font-weight: 800;
     color: #0d6efd;
 }
+
+/* AREA STRUK (Disembunyikan dari layar, cuma dibaca script) */
+#area-struk {
+    position: absolute;
+    left: -9999px; /* Lempar jauh keluar layar */
+    top: 0;
+    width: 350px; /* Lebar standar kertas struk */
+    background: white;
+    color: black;
+    font-family: 'Courier New', Courier, monospace; /* Font ala mesin kasir */
+    padding: 20px;
+    border: 1px solid #ddd;
+}
+
+.struk-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+.struk-body { margin-bottom: 10px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
+.struk-footer { text-align: center; font-size: 0.8rem; margin-top: 10px; }
+.struk-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
+.struk-total { font-weight: bold; font-size: 1.1rem; margin-top: 5px; }
