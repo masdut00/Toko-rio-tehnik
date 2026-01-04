@@ -6,6 +6,8 @@
     <title>Super Admin Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { background-color: #f4f6f9; font-size: 0.9rem; }
         .nav-tabs .nav-link.active { font-weight: bold; border-top: 3px solid #0d6efd; color: #0d6efd; }
@@ -29,6 +31,7 @@
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-master" onclick="loadMaster()">Master Barang</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-trx" onclick="loadTrx()">Riwayat Transaksi</button></li>
             <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-mutasi" onclick="loadMutasi()">Log Mutasi</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-rekap" onclick="loadRekap()">Rekap Bulanan</button></li>
         </ul>
 
         <div class="tab-content">
@@ -127,6 +130,31 @@
                 </div>
             </div>
 
+            <div class="tab-pane fade" id="tab-rekap">
+                <div class="d-flex justify-content-end mb-2 gap-2">
+                    <button class="btn btn-sm btn-danger" onclick="downloadRekapPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                    </button>
+                    
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadRekap()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                
+                <div class="bg-white rounded shadow-sm table-responsive">
+                    <table class="table table-hover mb-0" id="tabelLaporan">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>Bulan & Tahun</th>
+                                <th>Jumlah Transaksi</th>
+                                <th>Total Omset</th>
+                                <th>Aksi</th> </tr>
+                        </thead>
+                        <tbody id="tabel-rekap">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -444,6 +472,142 @@
                  loadMaster();
              }
         }
+
+        async function loadRekap() {
+            document.getElementById('tabel-rekap').innerHTML = '<tr><td colspan="4" class="text-center">Menghitung...</td></tr>';
+            
+            const respon = await requestKeGoogle('getRekapBulanan');
+            
+            let html = "";
+            if (respon && respon.status === "SUKSES") {
+                if (respon.data.length === 0) {
+                    html = '<tr><td colspan="4" class="text-center">Belum ada transaksi.</td></tr>';
+                } else {
+                    respon.data.forEach(item => {
+                        let [tahun, bulan] = item.periode.split("-");
+                        // Nama Bulan Cantik (Januari 2026)
+                        let namaBulan = new Date(tahun, bulan - 1).toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+                        let omset = new Intl.NumberFormat('id-ID').format(item.omset);
+                        
+                        html += `
+                            <tr>
+                                <td class="fw-bold text-dark align-middle">${namaBulan}</td>
+                                <td class="align-middle">${item.trx} Transaksi</td>
+                                <td class="fw-bold text-success align-middle">Rp ${omset}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-danger" onclick="downloadDetailBulan('${item.periode}', '${namaBulan}')">
+                                        <i class="bi bi-file-earmark-arrow-down"></i> Laporan PDF
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } else {
+                html = `<tr><td colspan="4" class="text-center text-danger">Gagal: ${respon ? respon.pesan : "Error"}</td></tr>`;
+            }
+            document.getElementById('tabel-rekap').innerHTML = html;
+        }
+
+        function downloadRekapPDF() {
+            // Cek dulu apakah tabel ada isinya
+            const tbody = document.getElementById('tabel-rekap');
+            if (tbody.innerText.includes("Menghitung") || tbody.innerText.includes("Gagal") || tbody.rows.length === 0) {
+                return alert("Data belum dimuat. Silakan klik Refresh dulu.");
+            }
+
+            // Panggil Library jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // 1. Buat Judul PDF
+            doc.setFontSize(18);
+            doc.text("LAPORAN REKAP BULANAN", 14, 20); // Posisi X=14, Y=20
+            
+            doc.setFontSize(12);
+            doc.text("TOKO RIO TEHNIK", 14, 28);
+            
+            doc.setFontSize(10);
+            doc.text("Dicetak pada: " + new Date().toLocaleString('id-ID'), 14, 34);
+
+            // 2. Konversi Tabel HTML ke PDF (Pakai autoTable)
+            doc.autoTable({
+                html: '#tabelLaporan', // ID tabel di HTML
+                startY: 40, // Mulai tabel di bawah judul (Y=40)
+                theme: 'grid', // Ada garis kotak-kotak
+                headStyles: { fillColor: [44, 62, 80] }, // Warna Header (Biru Tua)
+                styles: { fontSize: 10, cellPadding: 3 },
+                columnStyles: {
+                    0: { fontStyle: 'bold' }, // Kolom Bulan tebal
+                    2: { halign: 'right', fontStyle: 'bold', textColor: [0, 100, 0] } // Kolom Omset rata kanan & hijau
+                }
+            });
+
+            // 3. Download File
+            doc.save("Laporan-Bulanan-RioTehnik.pdf");
+        }
+
+        async function downloadDetailBulan(periodeKode, namaBulan) {
+            // Ubah tombol jadi loading (opsional, biar user tau proses)
+            const btn = event.target; 
+            const textAsli = btn.innerHTML;
+            btn.innerHTML = "Loading..."; btn.disabled = true;
+
+            // 1. Minta Data Detail ke Backend
+            const respon = await requestKeGoogle('getTransaksiByPeriode', { periode: periodeKode });
+
+            if (respon.status === "SUKSES") {
+                const data = respon.data;
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // 2. Header PDF
+                doc.setFontSize(16);
+                doc.text("LAPORAN TRANSAKSI BULANAN", 14, 20);
+                doc.setFontSize(12);
+                doc.text("Periode: " + namaBulan, 14, 28);
+                doc.text("Toko Rio Tehnik", 14, 34);
+
+                // 3. Siapkan Data Tabel PDF
+                let bodyData = data.map(row => [
+                    row.waktu,
+                    row.noStruk,
+                    row.item + " (" + row.qty + ")",
+                    "Rp " + new Intl.NumberFormat('id-ID').format(row.total),
+                    row.kasir
+                ]);
+
+                // 4. Generate Tabel
+                doc.autoTable({
+                    head: [['Waktu', 'No Struk', 'Barang', 'Total', 'Kasir']],
+                    body: bodyData,
+                    startY: 40,
+                    theme: 'grid',
+                    styles: { fontSize: 9 },
+                    columnStyles: {
+                        3: { halign: 'right', fontStyle: 'bold' } // Kolom Total rata kanan
+                    }
+                });
+
+                // 5. Total Akhir di Bawah
+                let grandTotal = data.reduce((sum, item) => sum + parseInt(item.total), 0);
+                let finalY = doc.lastAutoTable.finalY + 10;
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text("TOTAL OMSET: Rp " + new Intl.NumberFormat('id-ID').format(grandTotal), 14, finalY);
+
+                // 6. Save
+                doc.save(`Laporan_${namaBulan}.pdf`);
+
+            } else {
+                alert("Gagal mengambil detail: " + respon.pesan);
+            }
+
+            // Kembalikan tombol
+            btn.innerHTML = textAsli; btn.disabled = false;
+        }
+
     </script>
 </body>
 </html>
