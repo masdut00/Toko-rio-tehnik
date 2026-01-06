@@ -160,7 +160,15 @@
                 <div class="bg-white rounded shadow-sm table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead class="table-light">
-                            <tr><th>Waktu</th><th>Jenis</th><th>Barang</th><th>Jml</th><th>Dari -> Ke</th><th>Petugas</th></tr>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>Jenis</th>
+                                <th>Barang</th>
+                                <th>Nama Barang</th>
+                                <th>Jml</th>
+                                <th>Dari -> Ke</th>
+                                <th>Petugas</th>
+                            </tr>
                         </thead>
                         <tbody id="tabel-mutasi"></tbody>
                     </table>
@@ -357,24 +365,51 @@
 
         // --- 5. LOG MUTASI ---
         async function loadMutasi() {
-            document.getElementById('tabel-mutasi').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+            document.getElementById('tabel-mutasi').innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+            
             const respon = await requestKeGoogle('getLogMutasi');
             
             let html = "";
-            if(respon.status === "SUKSES") {
-                respon.data.forEach(item => {
-                    let waktu = new Date(item.waktu).toLocaleString('id-ID');
-                    let badge = item.jenis === "MASUK_SUPPLIER" ? "bg-success" : "bg-warning text-dark";
+            if(respon.status === "SUKSES" && respon.data.length > 0) {
+                
+                // 1. UBAH DATA MENTAH JADI OBJECT (MAPPING)
+                // Biar kita bisa panggil item.namaBarang, item.jenis, dll
+                const dataRapih = respon.data.map(row => {
+                    return {
+                        idMutasi: row[0],
+                        waktu: row[1],
+                        jenis: row[2],
+                        idBarang: row[3],
+                        namaBarang: row[4], // Ini yang Anda minta
+                        dari: row[5],
+                        ke: row[6],
+                        jml: row[7],
+                        petugas: row[8]
+                    };
+                });
+
+                // Balik urutan biar yang baru di atas
+                dataRapih.reverse();
+
+                // 2. TAMPILKAN KE TABEL
+                dataRapih.forEach(item => {
+                    let waktuStr = new Date(item.waktu).toLocaleString('id-ID');
+                    let badge = item.jenis.includes("MASUK") || item.jenis.includes("TERIMA") ? "bg-success" : "bg-warning text-dark";
+                    
                     html += `
                         <tr>
-                            <td class="small">${waktu}</td>
+                            <td class="small text-muted">${waktuStr}</td>
                             <td><span class="badge ${badge}">${item.jenis}</span></td>
-                            <td class="fw-bold text-primary">${item.barang}</td>
-                            <td class="fw-bold">${item.jml}</td>
-                            <td class="small">${item.dari} <i class="bi bi-arrow-right"></i> ${item.ke}</td>
-                            <td class="small text-muted">${item.petugas}</td>
+                            <td class="fw-bold text-dark small">${item.idBarang}</td>
+                            <td>${item.namaBarang}</td> <td class="fw-bold text-primary">${item.jml}</td>
+                            <td class="small">
+                                ${item.dari} <i class="bi bi-arrow-right text-muted"></i> ${item.ke}
+                            </td>
+                            <td class="small text-muted fst-italic">${item.petugas}</td>
                         </tr>`;
                 });
+            } else {
+                html = '<tr><td colspan="7" class="text-center text-muted">Belum ada riwayat mutasi.</td></tr>';
             }
             document.getElementById('tabel-mutasi').innerHTML = html;
         }
