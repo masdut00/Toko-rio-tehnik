@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background-color: #f4f6f9; font-size: 0.9rem; }
         .nav-tabs .nav-link.active { font-weight: bold; border-top: 3px solid #0d6efd; color: #0d6efd; }
@@ -55,7 +56,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <button class="nav-link text-white" data-bs-toggle="tab" data-bs-target="#tab-rekap" onclick="loadRekap()" type="button">
+                        <button class="nav-link text-white" data-bs-toggle="tab" data-bs-target="#tab-rekap" onclick="bukaLaporanKeuangan()" type="button">
                             <i class="bi bi-file-earmark-bar-graph"></i> Rekap
                         </button>
                     </li>
@@ -85,6 +86,17 @@
                         <div class="card card-stat bg-white p-3">
                             <small class="text-muted">Total Transaksi</small>
                             <h3 class="fw-bold mt-2" id="dashTrx">0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-12 mt-3">
+                        <div class="card shadow-sm border-0 bg-success text-white cursor-pointer" onclick="bukaLaporanKeuangan()">
+                            <div class="card-body d-flex justify-content-between align-items-center p-4">
+                                <div>
+                                    <h4 class="fw-bold"><i class="bi bi-graph-up-arrow"></i> LAPORAN KEUANGAN & PROFIT</h4>
+                                    <small>Analisa Laba Rugi, Grafik Penjualan, dan Top Produk</small>
+                                </div>
+                                <i class="bi bi-chevron-right fs-2"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -132,72 +144,256 @@
                 <div class="bg-white rounded shadow-sm p-0 table-responsive">
                     <table class="table table-hover table-striped mb-0">
                         <thead class="table-dark">
-                            <tr><th>ID</th><th>Nama</th><th>Kategori</th><th>Modal</th><th>Jual</th><th>Aksi</th></tr>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nama & Kategori</th>
+                                <th class="text-center">Gudang</th>
+                                <th class="text-center">Toko 1</th>
+                                <th class="text-center">Toko 2</th>
+                                <th>Harga (M/J)</th>
+                                <th>Aksi</th>
+                            </tr>
                         </thead>
                         <tbody id="tabel-master"><tr><td colspan="6" class="text-center py-3">Memuat...</td></tr></tbody>
                     </table>
                 </div>
+                <div id="paginationMaster" class="d-flex justify-content-center align-items-center gap-3 mt-3 mb-3 d-none">
+                    <button class="btn btn-sm btn-outline-primary" onclick="gantiHalaman(-1)" id="btnPrevMaster">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </button>
+                    <span class="fw-bold text-muted small">
+                        Hal <span id="txtHalMaster">1</span> / <span id="txtTotalHalMaster">...</span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="gantiHalaman(1)" id="btnNextMaster">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="tab-pane fade" id="tab-trx">
-                <div class="d-flex justify-content-end mb-2">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="loadTrx()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                <div class="row g-2 mb-3 align-items-center">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                            <input type="text" id="cariTrx" class="form-control" placeholder="Cari Struk..." onkeypress="if(event.key==='Enter') loadTrx(true)">
+                            <button class="btn btn-secondary" onclick="loadTrx(true)">Cari</button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2"></div>
+
+                    <div class="col-md-5">
+                        <div class="input-group justify-content-end">
+                            <input type="month" id="pilihBulanTrx" class="form-control" style="max-width: 150px;">
+                            <button class="btn btn-danger fw-bold" onclick="printTrxBulanan()">
+                                <i class="bi bi-printer"></i> PDF
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="loadTrx(false)" title="Refresh Tabel">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="bg-white rounded shadow-sm table-responsive">
                     <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light">
-                            <tr><th>Waktu</th><th>Struk</th><th>Lokasi</th><th>Item</th><th>Total</th><th>Kasir</th></tr>
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="cursor-pointer" onclick="setSortTrx('waktu')">
+                                    Waktu <i class="bi bi-arrow-down-up sort-icon" id="sortTrx-waktu"></i>
+                                </th>
+                                <th class="cursor-pointer" onclick="setSortTrx('noStruk')">
+                                    Struk <i class="bi bi-arrow-down-up sort-icon" id="sortTrx-noStruk"></i>
+                                </th>
+                                <th class="text-center">Lokasi</th>
+                                <th class="cursor-pointer" onclick="setSortTrx('namaBarang')">
+                                    Item <i class="bi bi-arrow-down-up sort-icon" id="sortTrx-namaBarang"></i>
+                                </th>
+                                <th class="cursor-pointer" onclick="setSortTrx('total')">
+                                    Total <i class="bi bi-arrow-down-up sort-icon" id="sortTrx-total"></i>
+                                </th>
+                                <th class="cursor-pointer" onclick="setSortTrx('kasir')">
+                                    Kasir <i class="bi bi-arrow-down-up sort-icon" id="sortTrx-kasir"></i>
+                                </th>
+                            </tr>
                         </thead>
-                        <tbody id="tabel-trx"></tbody>
+                        <tbody id="tabel-trx"><tr><td colspan="6" class="text-center py-4">Memuat data...</td></tr></tbody>
                     </table>
+                </div>
+
+                <div id="paginationTrx" class="d-flex justify-content-center align-items-center gap-3 mt-3 mb-3 d-none">
+                    <button class="btn btn-sm btn-outline-primary" onclick="gantiHalamanTrx(-1)" id="btnPrevTrx">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </button>
+                    <span class="fw-bold text-muted small">
+                        Hal <span id="txtHalTrx">1</span> / <span id="txtTotalHalTrx">...</span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="gantiHalamanTrx(1)" id="btnNextTrx">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
                 </div>
             </div>
 
             <div class="tab-pane fade" id="tab-mutasi">
-                <div class="d-flex justify-content-end mb-2">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="loadMutasi()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                <div class="d-flex justify-content-between mb-3 align-items-center">
+                    <div class="input-group w-50">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" id="cariMutasi" class="form-control" placeholder="Cari Barang / Jenis / Petugas..." onkeypress="if(event.key==='Enter') loadMutasi(true)">
+                        <button class="btn btn-secondary" onclick="loadMutasi(true)">Cari</button>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadMutasi(false)"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
                 </div>
+
                 <div class="bg-white rounded shadow-sm table-responsive">
                     <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light">
+                        <thead class="table-dark">
                             <tr>
-                                <th>Waktu</th>
-                                <th>Jenis</th>
+                                <th class="cursor-pointer" onclick="setSortMutasi('waktu')">
+                                    Waktu <i class="bi bi-arrow-down-up sort-icon" id="sortMutasi-waktu"></i>
+                                </th>
+                                <th class="cursor-pointer" onclick="setSortMutasi('jenis')">
+                                    Jenis <i class="bi bi-arrow-down-up sort-icon" id="sortMutasi-jenis"></i>
+                                </th>
                                 <th>Barang</th>
-                                <th>Nama Barang</th>
-                                <th>Jml</th>
-                                <th>Dari -> Ke</th>
-                                <th>Petugas</th>
+                                <th class="cursor-pointer" onclick="setSortMutasi('namaBarang')">
+                                    Nama Barang <i class="bi bi-arrow-down-up sort-icon" id="sortMutasi-namaBarang"></i>
+                                </th>
+                                <th class="text-center cursor-pointer" onclick="setSortMutasi('jumlah')">
+                                    Jml <i class="bi bi-arrow-down-up sort-icon" id="sortMutasi-jumlah"></i>
+                                </th>
+                                <th>Alur (Dari -> Ke)</th>
+                                <th class="cursor-pointer" onclick="setSortMutasi('petugas')">
+                                    Petugas <i class="bi bi-arrow-down-up sort-icon" id="sortMutasi-petugas"></i>
+                                </th>
                             </tr>
                         </thead>
-                        <tbody id="tabel-mutasi"></tbody>
+                        <tbody id="tabel-mutasi"><tr><td colspan="7" class="text-center py-4">Memuat data...</td></tr></tbody>
                     </table>
+                </div>
+
+                <div id="paginationMutasi" class="d-flex justify-content-center align-items-center gap-3 mt-3 mb-3 d-none">
+                    <button class="btn btn-sm btn-outline-primary" onclick="gantiHalamanMutasi(-1)" id="btnPrevMutasi">
+                        <i class="bi bi-chevron-left"></i> Prev
+                    </button>
+                    <span class="fw-bold text-muted small">
+                        Hal <span id="txtHalMutasi">1</span> / <span id="txtTotalHalMutasi">...</span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="gantiHalamanMutasi(1)" id="btnNextMutasi">
+                        Next <i class="bi bi-chevron-right"></i>
+                    </button>
                 </div>
             </div>
 
             <div class="tab-pane fade" id="tab-rekap">
-                <div class="d-flex justify-content-end mb-2 gap-2">
-                    <button class="btn btn-sm btn-danger" onclick="downloadRekapPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Download PDF
-                    </button>
-                    
-                    <button class="btn btn-sm btn-outline-secondary" onclick="loadRekap()">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                    </button>
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-4">
+                                <label class="small text-muted fw-bold">Dari Tanggal</label>
+                                <input type="date" id="tglMulai" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small text-muted fw-bold">Sampai Tanggal</label>
+                                <input type="date" id="tglSelesai" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary w-100 fw-bold" onclick="loadAnalisaKeuangan()">
+                                        <i class="bi bi-search"></i> ANALISA
+                                    </button>
+                                    <button class="btn btn-danger w-100 fw-bold" onclick="printLaporanKeuangan()">
+                                        <i class="bi bi-printer"></i> PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="bg-white rounded shadow-sm table-responsive">
-                    <table class="table table-hover mb-0" id="tabelLaporan">
-                        <thead class="table-primary">
-                            <tr>
-                                <th>Bulan & Tahun</th>
-                                <th>Jumlah Transaksi</th>
-                                <th>Total Omset</th>
-                                <th>Aksi</th> </tr>
-                        </thead>
-                        <tbody id="tabel-rekap">
-                            </tbody>
-                    </table>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-primary">
+                            <small class="text-muted fw-bold">TOTAL OMSET</small>
+                            <h4 class="fw-bold text-primary mt-1" id="statOmset">Rp 0</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-success">
+                            <small class="text-muted fw-bold">TOTAL PROFIT (LABA)</small>
+                            <h4 class="fw-bold text-success mt-1" id="statProfit">Rp 0</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-warning">
+                            <small class="text-muted fw-bold">MARGIN KEUNTUNGAN</small>
+                            <h4 class="fw-bold text-warning mt-1" id="statMargin">0%</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm p-3 h-100 border-start border-4 border-info">
+                            <small class="text-muted fw-bold">ITEM TERJUAL</small>
+                            <h4 class="fw-bold text-info mt-1" id="statQty">0 Pcs</h4>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm p-3 h-100 bg-primary text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="opacity-75 fw-bold">OMSET TOKO 1</small>
+                                        <h4 class="fw-bold m-0" id="statToko1">Rp 0</h4>
+                                    </div>
+                                    <i class="bi bi-shop display-4 opacity-25"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm p-3 h-100 bg-info text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="opacity-75 fw-bold">OMSET TOKO 2</small>
+                                        <h4 class="fw-bold m-0" id="statToko2">Rp 0</h4>
+                                    </div>
+                                    <i class="bi bi-shop-window display-4 opacity-25"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header bg-white fw-bold py-3">
+                                <i class="bi bi-bar-chart-line"></i> Grafik Tren Harian
+                            </div>
+                            <div class="card-body">
+                                <canvas id="myChart" style="max-height: 300px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-header bg-white fw-bold py-3">
+                                <i class="bi bi-trophy"></i> Top 10 Produk Terlaris
+                            </div>
+                            <div class="card-body p-0 table-responsive">
+                                <table class="table table-hover mb-0" style="font-size: 0.85rem;" id="tabelTopProduk">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Barang</th>
+                                            <th class="text-center">Qty</th>
+                                            <th class="text-end">Laba</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="listTopProduk">
+                                        <tr><td colspan="3" class="text-center py-4 text-muted">Muat data dulu...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -206,12 +402,12 @@
     <div class="modal fade" id="modalBarang" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">Form Barang</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" id="modeForm">
+                    <input type="hidden" id="modeForm"> 
                     
                     <div class="row g-2 mb-3">
                         <div class="col-4">
@@ -254,11 +450,51 @@
                             <option value="Unit">Unit</option>
                             <option value="Meter">Meter</option>
                             <option value="Box">Box</option>
+                            <option value="Roll">Roll</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-primary w-100" onclick="simpanBarang()">SIMPAN DATA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalMutasi" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title fw-bold text-dark"><i class="bi bi-arrow-left-right"></i> Atur Stok (Admin)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="idBarangMutasi">
+                    <h5 id="namaBarangMutasi" class="fw-bold mb-3">...</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label">Jenis Aksi</label>
+                        <select id="jenisMutasi" class="form-select" onchange="cekJenisMutasi()">
+                            <option value="MASUK_SUPPLIER">📥 Tambah Stok Gudang (Beli)</option>
+                            <option value="KIRIM_TOKO">🚚 Pindah Gudang -> Toko</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="blokTujuanMutasi">
+                        <label class="form-label">Ke Toko Mana?</label>
+                        <select id="tujuanMutasi" class="form-select">
+                            <option value="Toko1">Toko 1</option>
+                            <option value="Toko2">Toko 2</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Jumlah</label>
+                        <input type="number" id="jumlahMutasi" class="form-control" placeholder="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100 fw-bold" onclick="simpanMutasi()">PROSES STOK</button>
                 </div>
             </div>
         </div>
@@ -277,10 +513,26 @@
         }
         
         let modalBootstrap;
+        let modalMutasiBootstrap;
+        let halamanSaatIni = 1;
+        let totalHalaman = 1;
+
+        let halamanTrx = 1;
+        let totalHalamanTrx = 1;
+        let sortTrxState = { col: 'waktu', order: 'desc' };
+
+        let halamanMutasi = 1;
+        let totalHalamanMutasi = 1;
+        let sortMutasiState = { col: 'waktu', order: 'desc' };
+
+        let myChartInstance = null;
+
+        let globalLaporanData = null;
 
         window.onload = function() {
             modalBootstrap = new bootstrap.Modal(document.getElementById('modalBarang'));
-            loadDashboard(); // Load data omset saat pertama buka
+            modalMutasiBootstrap = new bootstrap.Modal(document.getElementById('modalMutasi'));
+            loadDashboard();
         };
 
         function logout() {
@@ -310,108 +562,178 @@
             }
         }
 
-        async function loadTrx() {
-            document.getElementById('tabel-trx').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
-            const respon = await requestKeGoogle('getLaporan'); 
+        async function loadTrx(resetPage = true) {
+            if (resetPage) halamanTrx = 1;
+
+            const key = document.getElementById('cariTrx').value;
+            
+            document.getElementById('tabel-trx').innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+            document.getElementById('paginationTrx').classList.add('d-none');
+
+            const respon = await requestKeGoogle('getLaporan', { 
+                keyword: key,
+                page: halamanTrx,
+                sortBy: sortTrxState.col,
+                sortOrder: sortTrxState.order
+            });
             
             if(respon.status === "SUKSES") {
+                document.getElementById('dashOmset').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(respon.summary.omset);
+                document.getElementById('dashTrx').innerText = respon.summary.jumlah;
+
                 let html = "";
-                respon.list.forEach(item => {
-                    let waktu = new Date(item.waktu).toLocaleString('id-ID');
-                    let total = new Intl.NumberFormat('id-ID').format(item.total);
-                    html += `
-                        <tr>
-                            <td class="small">${waktu}</td>
-                            <td class="small fw-bold">${item.noStruk}</td>
-                            <td><span class="badge bg-secondary">${item.lokasi}</span></td>
-                            <td>${item.namaBarang} (${item.qty})</td>
-                            <td class="fw-bold">Rp ${total}</td>
-                            <td class="small text-muted">${item.kasir}</td>
-                        </tr>
-                    `;
-                });
+                if (respon.list.length > 0) {
+                    respon.list.forEach(item => {
+                        let waktu = new Date(item.waktu).toLocaleString('id-ID');
+                        // Total sekarang pakai 'totalBayar' hasil akumulasi grouping
+                        let total = new Intl.NumberFormat('id-ID').format(item.totalBayar); 
+                        
+                        let badge = item.lokasi === "Gudang" ? "bg-warning text-dark" : (item.lokasi === "Toko1" ? "bg-primary" : "bg-success");
+
+                        // --- GABUNGKAN ITEM JADI SATU STRING ---
+                        // Jika item banyak, pisahkan dengan koma atau baris baru <br>
+                        // Contoh output: "Kabel (2), Lampu (5)"
+                        let daftarBarang = item.listBarang.join(", <br>"); 
+
+                        html += `
+                            <tr>
+                                <td class="small text-muted align-middle">${waktu}</td>
+                                <td class="small fw-bold align-middle">${item.noStruk}</td>
+                                <td class="text-center align-middle"><span class="badge ${badge}">${item.lokasi}</span></td>
+                                
+                                <td class="small align-middle">${daftarBarang}</td>
+                                
+                                <td class="fw-bold text-dark align-middle">Rp ${total}</td>
+                                <td class="small text-muted fst-italic align-middle">${item.kasir}</td>
+                            </tr>
+                        `;
+                    });
+                    if (respon.meta) setupPaginationTrx(respon.meta);
+                } else {
+                    html = '<tr><td colspan="6" class="text-center py-5 text-muted">Transaksi tidak ditemukan.</td></tr>';
+                }
                 document.getElementById('tabel-trx').innerHTML = html;
+                updateSortUI_Trx(); 
+            } else {
+                document.getElementById('tabel-trx').innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error: ${respon.pesan}</td></tr>`;
             }
         }
 
         // --- 4. MASTER BARANG ---
-        async function loadMaster() {
+        async function loadMaster(resetPage = true) {
+            if (resetPage) halamanSaatIni = 1;
+
             const key = document.getElementById('cariMaster').value;
-            document.getElementById('tabel-master').innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
             
-            const respon = await requestKeGoogle('getMasterBarang', { keyword: key });
+            // UI Loading
+            document.getElementById('tabel-master').innerHTML = '<tr><td colspan="7" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+            document.getElementById('paginationMaster').classList.add('d-none'); // Sembunyikan paginasi saat loading
+            
+            // Request ke Backend (Kirim Page)
+            const respon = await requestKeGoogle('getMasterBarang', { 
+                keyword: key,
+                page: halamanSaatIni
+            });
             
             let html = "";
-            if(respon.status === "SUKSES" && respon.data.length > 0) {
-                respon.data.forEach(item => {
-                    html += `
-                        <tr>
-                            <td><small class="fw-bold text-muted">${item.id}</small></td>
-                            <td>${item.nama}</td>
-                            <td><span class="badge bg-light text-dark border">${item.kategori}</span></td>
-                            <td class="text-danger small">Rp ${new Intl.NumberFormat('id-ID').format(item.modal)}</td>
-                            <td class="text-success fw-bold small">Rp ${new Intl.NumberFormat('id-ID').format(item.jual)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-warning py-0" onclick="edit('${item.id}', '${item.nama}', '${item.kategori}', ${item.modal}, ${item.jual}, '${item.satuan}')"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-outline-danger py-0" onclick="hapus('${item.id}')"><i class="bi bi-trash"></i></button>
-                            </td>
-                        </tr>`;
-                });
-            } else { 
-                html = '<tr><td colspan="6" class="text-center">Data kosong / Tidak ditemukan.</td></tr>'; 
+            if(respon.status === "SUKSES") {
+                if (respon.data.length > 0) {
+                    respon.data.forEach(item => {
+                        let modalRp = new Intl.NumberFormat('id-ID').format(item.modal);
+                        let jualRp = new Intl.NumberFormat('id-ID').format(item.jual);
+                        let namaSafe = item.nama.replace(/'/g, "\\'"); 
+                        let idSafe = item.id;
+
+                        html += `
+                            <tr>
+                                <td><small class="fw-bold text-muted">${item.id}</small></td>
+                                <td>
+                                    <div class="fw-bold text-dark">${item.nama}</div>
+                                    <span class="badge bg-light text-dark border">${item.kategori}</span>
+                                </td>
+                                <td class="text-center bg-light border-start border-end fw-bold text-primary">${item.stok_gudang || 0}</td>
+                                <td class="text-center text-muted">${item.stok_toko1 || 0}</td>
+                                <td class="text-center text-muted">${item.stok_toko2 || 0}</td>
+                                <td>
+                                    <div class="small text-danger">M: ${modalRp}</div>
+                                    <div class="small text-success fw-bold">J: ${jualRp}</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-primary" title="Atur Stok" onclick="bukaModalMutasi('${idSafe}', '${namaSafe}')"><i class="bi bi-boxes"></i></button>
+                                        <button class="btn btn-sm btn-warning" title="Edit Info" onclick="edit('${idSafe}', '${namaSafe}', '${item.kategori}', ${item.modal}, ${item.jual}, '${item.satuan}')"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-danger" title="Hapus" onclick="hapus('${idSafe}')"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </td>
+                            </tr>`;
+                    });
+                    
+                    // Render Pagination jika ada meta
+                    if (respon.meta) setupPagination(respon.meta);
+
+                } else { 
+                    html = '<tr><td colspan="7" class="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>'; 
+                }
+            } else {
+                html = `<tr><td colspan="7" class="text-center text-danger">Error: ${respon.pesan}</td></tr>`;
             }
             document.getElementById('tabel-master').innerHTML = html;
         }
 
         // --- 5. LOG MUTASI ---
-        async function loadMutasi() {
-            document.getElementById('tabel-mutasi').innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
+        async function loadMutasi(resetPage = true) {
+            if (resetPage) halamanMutasi = 1;
             
-            const respon = await requestKeGoogle('getLogMutasi');
-            
-            let html = "";
-            if(respon.status === "SUKSES" && respon.data.length > 0) {
-                
-                // 1. UBAH DATA MENTAH JADI OBJECT (MAPPING)
-                // Biar kita bisa panggil item.namaBarang, item.jenis, dll
-                const dataRapih = respon.data.map(row => {
-                    return {
-                        idMutasi: row[0],
-                        waktu: row[1],
-                        jenis: row[2],
-                        idBarang: row[3],
-                        namaBarang: row[4], // Ini yang Anda minta
-                        dari: row[5],
-                        ke: row[6],
-                        jml: row[7],
-                        petugas: row[8]
-                    };
-                });
+            const key = document.getElementById('cariMutasi').value;
 
-                // Balik urutan biar yang baru di atas
-                dataRapih.reverse();
+            // UI Loading
+            document.getElementById('tabel-mutasi').innerHTML = '<tr><td colspan="7" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+            document.getElementById('paginationMutasi').classList.add('d-none');
 
-                // 2. TAMPILKAN KE TABEL
-                dataRapih.forEach(item => {
-                    let waktuStr = new Date(item.waktu).toLocaleString('id-ID');
-                    let badge = item.jenis.includes("MASUK") || item.jenis.includes("TERIMA") ? "bg-success" : "bg-warning text-dark";
-                    
-                    html += `
-                        <tr>
-                            <td class="small text-muted">${waktuStr}</td>
-                            <td><span class="badge ${badge}">${item.jenis}</span></td>
-                            <td class="fw-bold text-dark small">${item.idBarang}</td>
-                            <td>${item.namaBarang}</td> <td class="fw-bold text-primary">${item.jml}</td>
-                            <td class="small">
-                                ${item.dari} <i class="bi bi-arrow-right text-muted"></i> ${item.ke}
-                            </td>
-                            <td class="small text-muted fst-italic">${item.petugas}</td>
-                        </tr>`;
-                });
+            // Request ke Backend
+            const respon = await requestKeGoogle('getLogMutasi', { 
+                keyword: key,
+                page: halamanMutasi,
+                sortBy: sortMutasiState.col,
+                sortOrder: sortMutasiState.order
+            });
+
+            if(respon.status === "SUKSES") {
+                let html = "";
+                if(respon.data.length > 0) {
+                    respon.data.forEach(item => {
+                        let waktuStr = new Date(item.waktu).toLocaleString('id-ID');
+                        
+                        // Badge Warna Warni sesuai Jenis Mutasi
+                        let badge = "";
+                        if(item.jenis.includes("SUPPLIER") || item.jenis.includes("MASUK")) badge = "bg-success"; // Hijau (Masuk)
+                        else badge = "bg-warning text-dark"; // Kuning (Pindah/Keluar)
+
+                        html += `
+                            <tr>
+                                <td class="small text-muted">${waktuStr}</td>
+                                <td><span class="badge ${badge}">${item.jenis}</span></td>
+                                <td class="small fw-bold text-muted">${item.idBarang}</td>
+                                <td>${item.namaBarang}</td>
+                                <td class="text-center fw-bold text-primary fs-6">${item.jumlah}</td>
+                                <td class="small">
+                                    ${item.dari} <i class="bi bi-arrow-right text-muted"></i> ${item.ke}
+                                </td>
+                                <td class="small text-muted fst-italic">${item.petugas}</td>
+                            </tr>`;
+                    });
+
+                    // Setup Pagination
+                    if (respon.meta) setupPaginationMutasi(respon.meta);
+
+                } else {
+                    html = '<tr><td colspan="7" class="text-center py-5 text-muted">Data mutasi tidak ditemukan.</td></tr>';
+                }
+                document.getElementById('tabel-mutasi').innerHTML = html;
+                updateSortUI_Mutasi();
             } else {
-                html = '<tr><td colspan="7" class="text-center text-muted">Belum ada riwayat mutasi.</td></tr>';
+                document.getElementById('tabel-mutasi').innerHTML = `<tr><td colspan="7" class="text-center text-danger">Error: ${respon.pesan}</td></tr>`;
             }
-            document.getElementById('tabel-mutasi').innerHTML = html;
         }
 
         // --- 6. LOGIKA MODAL (TAMBAH/EDIT) ---
@@ -680,6 +1002,524 @@
             btn.innerHTML = textAsli; btn.disabled = false;
         }
 
+        function bukaModalMutasi(id, nama) {
+            // 1. CEK: Apakah modal sudah terdaftar di memory?
+            if (!modalMutasiBootstrap) {
+                // Jika belum, coba cari elemennya sekarang
+                const el = document.getElementById('modalMutasi');
+                if (el) {
+                    // Kalau ketemu, inisialisasi ulang
+                    modalMutasiBootstrap = new bootstrap.Modal(el);
+                } else {
+                    // Kalau HTML-nya benar-benar tidak ada
+                    alert("FATAL ERROR: Kode HTML <div id='modalMutasi'> belum dipasang di admin.html!");
+                    return;
+                }
+            }
+            
+            // 2. Isi Data ke Form
+            document.getElementById('idBarangMutasi').value = id;
+            document.getElementById('namaBarangMutasi').innerText = nama;
+            document.getElementById('jumlahMutasi').value = "";
+            document.getElementById('jenisMutasi').value = "MASUK_SUPPLIER";
+            
+            // 3. Atur Tampilan Dropdown
+            cekJenisMutasi();
+            
+            // 4. Tampilkan (Sekarang pasti aman)
+            modalMutasiBootstrap.show();
+        }
+
+        function cekJenisMutasi() {
+            const jenis = document.getElementById('jenisMutasi').value;
+            const blok = document.getElementById('blokTujuanMutasi');
+            if(jenis === 'KIRIM_TOKO') blok.classList.remove('d-none');
+            else blok.classList.add('d-none');
+        }
+
+        async function simpanMutasi() {
+            const id = document.getElementById('idBarangMutasi').value;
+            const jenis = document.getElementById('jenisMutasi').value;
+            const jumlah = document.getElementById('jumlahMutasi').value;
+            const tujuan = document.getElementById('tujuanMutasi').value;
+
+            if(!jumlah || jumlah <= 0) return alert("Jumlah wajib diisi!");
+
+            // Button Loading
+            const btn = document.querySelector('#modalMutasi .btn-primary');
+            const txtLama = btn.innerText;
+            btn.innerHTML = "Proses..."; btn.disabled = true;
+
+            // Reuse endpoint 'prosesMutasi' yang sama dengan Gudang
+            const payload = {
+                idBarang: id,
+                jenis: jenis, 
+                jumlah: jumlah,
+                tujuan: tujuan,
+                petugas: "ADMIN" // Log petugasnya sebagai ADMIN
+            };
+
+            const respon = await requestKeGoogle('prosesMutasi', { payload: payload });
+
+            if(respon.status === "SUKSES") {
+                alert("✅ Stok Berhasil Diupdate!");
+                modalMutasiBootstrap.hide();
+                loadMaster(); // Refresh tabel master untuk lihat stok baru
+            } else {
+                alert("❌ Gagal: " + respon.pesan);
+            }
+            btn.innerText = txtLama; btn.disabled = false;
+        }
+
+        // --- NAVIGASI HALAMAN MASTER ---
+        function gantiHalaman(n) {
+            let target = halamanSaatIni + n;
+            if (target < 1 || target > totalHalaman) return;
+            halamanSaatIni = target;
+            // Panggil loadMaster dengan False (jangan reset ke hal 1)
+            loadMaster(false); 
+        }
+
+        function setupPagination(meta) {
+            totalHalaman = meta.totalPage;
+            const area = document.getElementById('paginationMaster');
+            
+            // Tampilkan area jika total halaman > 1, atau sembunyikan jika cuma 1 halaman
+            // (Opsional: Mau ditampilkan terus juga boleh, hapus if ini)
+            if (meta.totalPage > 1) area.classList.remove('d-none');
+            else area.classList.add('d-none');
+
+            document.getElementById('txtHalMaster').innerText = meta.page;
+            document.getElementById('txtTotalHalMaster').innerText = meta.totalPage;
+            
+            document.getElementById('btnPrevMaster').disabled = (meta.page <= 1);
+            document.getElementById('btnNextMaster').disabled = (meta.page >= meta.totalPage);
+        }
+
+        // Navigasi Halaman Transaksi
+        function gantiHalamanTrx(n) {
+            let target = halamanTrx + n;
+            if (target < 1 || target > totalHalamanTrx) return;
+            halamanTrx = target;
+            loadTrx(false);
+        }
+
+        function setupPaginationTrx(meta) {
+            totalHalamanTrx = meta.totalPage;
+            const area = document.getElementById('paginationTrx');
+            
+            if (meta.totalPage > 1) area.classList.remove('d-none');
+            else area.classList.add('d-none');
+
+            document.getElementById('txtHalTrx').innerText = meta.page;
+            document.getElementById('txtTotalHalTrx').innerText = meta.totalPage;
+            
+            document.getElementById('btnPrevTrx').disabled = (meta.page <= 1);
+            document.getElementById('btnNextTrx').disabled = (meta.page >= meta.totalPage);
+        }
+
+        // Sorting Transaksi
+        function setSortTrx(columnName) {
+            if (sortTrxState.col === columnName) {
+                sortTrxState.order = (sortTrxState.order === 'asc') ? 'desc' : 'asc';
+            } else {
+                sortTrxState.col = columnName;
+                sortTrxState.order = 'asc';
+            }
+            loadTrx(true); // Reset ke halaman 1 setiap ganti sort
+        }
+
+        function updateSortUI_Trx() {
+            // Reset icon lama
+            document.querySelectorAll('[id^="sortTrx-"]').forEach(el => {
+                el.className = "bi bi-arrow-down-up sort-icon"; // Icon netral
+                el.parentElement.classList.remove('text-primary'); // Hapus warna aktif
+            });
+
+            // Set icon aktif
+            let icon = document.getElementById('sortTrx-' + sortTrxState.col);
+            if(icon) {
+                icon.className = (sortTrxState.order === 'asc') 
+                    ? "bi bi-sort-down sort-icon sort-active text-primary" 
+                    : "bi bi-sort-up sort-icon sort-active text-primary";
+                icon.parentElement.classList.add('text-primary'); // Highlight Header
+            }
+        }
+
+        // Navigasi Halaman Mutasi
+        function gantiHalamanMutasi(n) {
+            let target = halamanMutasi + n;
+            if (target < 1 || target > totalHalamanMutasi) return;
+            halamanMutasi = target;
+            loadMutasi(false);
+        }
+
+        function setupPaginationMutasi(meta) {
+            totalHalamanMutasi = meta.totalPage;
+            const area = document.getElementById('paginationMutasi');
+            
+            if (meta.totalPage > 1) area.classList.remove('d-none');
+            else area.classList.add('d-none');
+
+            document.getElementById('txtHalMutasi').innerText = meta.page;
+            document.getElementById('txtTotalHalMutasi').innerText = meta.totalPage;
+            
+            document.getElementById('btnPrevMutasi').disabled = (meta.page <= 1);
+            document.getElementById('btnNextMutasi').disabled = (meta.page >= meta.totalPage);
+        }
+
+        // Sorting Mutasi
+        function setSortMutasi(columnName) {
+            if (sortMutasiState.col === columnName) {
+                sortMutasiState.order = (sortMutasiState.order === 'asc') ? 'desc' : 'asc';
+            } else {
+                sortMutasiState.col = columnName;
+                sortMutasiState.order = 'asc';
+            }
+            loadMutasi(true);
+        }
+
+        function updateSortUI_Mutasi() {
+            // Reset icon lama
+            document.querySelectorAll('[id^="sortMutasi-"]').forEach(el => {
+                el.className = "bi bi-arrow-down-up sort-icon"; 
+                el.parentElement.classList.remove('text-primary');
+            });
+
+            // Set icon aktif
+            let icon = document.getElementById('sortMutasi-' + sortMutasiState.col);
+            if(icon) {
+                icon.className = (sortMutasiState.order === 'asc') 
+                    ? "bi bi-sort-down sort-icon sort-active text-primary" 
+                    : "bi bi-sort-up sort-icon sort-active text-primary";
+                icon.parentElement.classList.add('text-primary'); 
+            }
+        }
+
+        function bukaLaporanKeuangan() {
+            // 1. Pindah Tab ke Rekap
+            const triggerEl = document.querySelector('button[data-bs-target="#tab-rekap"]');
+            const tab = new bootstrap.Tab(triggerEl);
+            tab.show();
+
+            // 2. Set Default Tanggal (Bulan Ini)
+            const date = new Date();
+            const y = date.getFullYear();
+            const m = date.getMonth();
+            
+            // Tgl Awal = Tanggal 1 bulan ini
+            const firstDay = new Date(y, m, 1);
+            // Tgl Akhir = Hari ini
+            const lastDay = new Date();
+
+            // Format ke YYYY-MM-DD untuk input date HTML
+            document.getElementById('tglMulai').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('tglSelesai').value = lastDay.toISOString().split('T')[0];
+
+            // 3. Load Data Otomatis
+            loadAnalisaKeuangan();
+        }
+
+        async function loadAnalisaKeuangan() {
+            const tglMulai = document.getElementById('tglMulai').value;
+            const tglSelesai = document.getElementById('tglSelesai').value;
+
+            if(!tglMulai || !tglSelesai) return alert("Pilih rentang tanggal dulu!");
+
+            const btn = document.querySelector('button[onclick="loadAnalisaKeuangan()"]');
+            const txtAsli = btn.innerHTML;
+            btn.innerHTML = "Loading..."; btn.disabled = true;
+
+            const respon = await requestKeGoogle('getAnalisaKeuangan', { mulai: tglMulai, selesai: tglSelesai });
+
+            if(respon.status === "SUKSES") {
+                // SIMPAN KE GLOBAL UNTUK PDF
+                globalLaporanData = respon; 
+
+                const s = respon.stats;
+                document.getElementById('statOmset').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(s.omset);
+                let elProfit = document.getElementById('statProfit');
+                    elProfit.innerText = "Rp " + new Intl.NumberFormat('id-ID').format(s.profit);
+                    if(s.profit < 0) {
+                        elProfit.className = "fw-bold text-danger mt-1"; // Merah
+                    } else {
+                        elProfit.className = "fw-bold text-success mt-1"; // Hijau
+                    }
+                document.getElementById('statQty').innerText = new Intl.NumberFormat('id-ID').format(s.qty);
+                
+                let margin = 0;
+                if(s.omset > 0) margin = (s.profit / s.omset) * 100;
+                document.getElementById('statMargin').innerText = margin.toFixed(1) + "%";
+                document.getElementById('statToko1').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(s.omsetToko1);
+                document.getElementById('statToko2').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(s.omsetToko2);
+
+                renderChart(respon.chart.labels, respon.chart.omset, respon.chart.profit);
+
+                let htmlTop = "";
+                respon.topProducts.forEach(p => {
+                    let laba = new Intl.NumberFormat('id-ID').format(p.profit);
+                    htmlTop += `<tr><td class="fw-bold text-dark">${p.nama}</td><td class="text-center"><span class="badge bg-secondary">${p.qty}</span></td><td class="text-end text-success fw-bold small">+${laba}</td></tr>`;
+                });
+                document.getElementById('listTopProduk').innerHTML = htmlTop;
+
+            } else {
+                alert("Gagal memuat data: " + respon.pesan);
+            }
+            btn.innerHTML = txtAsli; btn.disabled = false;
+        }
+
+        function renderChart(labels, dataOmset, dataProfit) {
+            const ctx = document.getElementById('myChart').getContext('2d');
+
+            // Hancurkan chart lama jika ada (biar gak numpuk saat refresh)
+            if (myChartInstance) {
+                myChartInstance.destroy();
+            }
+
+            myChartInstance = new Chart(ctx, {
+                type: 'line', // Grafik Garis
+                data: {
+                    labels: labels, // Tanggal
+                    datasets: [
+                        {
+                            label: 'Omset (Pendapatan)',
+                            data: dataOmset,
+                            borderColor: '#0d6efd', // Biru
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.3, // Garis agak melengkung
+                            fill: true
+                        },
+                        {
+                            label: 'Profit (Laba Bersih)',
+                            data: dataProfit,
+                            borderColor: '#198754', // Hijau
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                // Format angka jadi Rupiah di sumbu Y
+                                callback: function(value) {
+                                    return 'Rp ' + (value / 1000) + 'k'; 
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function printLaporanKeuangan() {
+            if (!globalLaporanData) return alert("Silakan klik tombol 'ANALISA' terlebih dahulu.");
+
+            const tglMulai = document.getElementById('tglMulai').value;
+            const tglSelesai = document.getElementById('tglSelesai').value;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Data Statistik dari Global Variable
+            const stats = globalLaporanData.stats;
+
+            // --- WARNA ---
+            const colorGreen = [25, 135, 84]; // Hijau Sukses
+            const colorRed = [220, 53, 69];   // Merah Bahaya
+            const colorBlack = [0, 0, 0];
+
+            // 1. HEADER
+            doc.setFontSize(18); doc.text("LAPORAN PERFORMA KEUANGAN", 14, 20);
+            doc.setFontSize(11); doc.text(`Periode: ${tglMulai} s/d ${tglSelesai}`, 14, 27);
+            doc.text("Toko Rio Tehnik", 14, 33);
+            doc.line(14, 38, 196, 38);
+
+            // 2. STATS BOX (Ringkasan)
+            doc.setFontSize(14); doc.text("Ringkasan Kinerja", 14, 48);
+            doc.setFontSize(11);
+            
+            // Total Omset
+            doc.text("Total Omset:", 14, 58); 
+            doc.text(document.getElementById('statOmset').innerText, 60, 58);
+            
+            // Total Profit (Cek Warna)
+            doc.text("Total Profit:", 14, 66); 
+            if (stats.profit < 0) doc.setTextColor(...colorRed); // Spread operator array warna
+            else doc.setTextColor(...colorGreen);
+            
+            doc.text(document.getElementById('statProfit').innerText, 60, 66); 
+            doc.setTextColor(...colorBlack); // Reset Hitam
+
+            // Margin
+            doc.text("Margin:", 14, 74); 
+            if (stats.profit < 0) doc.setTextColor(...colorRed);
+            else doc.setTextColor(...colorBlack); // Margin hitam biasa atau ikut merah jika rugi
+            doc.text(document.getElementById('statMargin').innerText, 60, 74);
+            doc.setTextColor(...colorBlack);
+
+            // Statistik Kanan
+            doc.text("Omset Toko 1:", 100, 58); doc.text(document.getElementById('statToko1').innerText, 140, 58);
+            doc.text("Omset Toko 2:", 100, 66); doc.text(document.getElementById('statToko2').innerText, 140, 66);
+            doc.text("Item Terjual:", 100, 74); doc.text(document.getElementById('statQty').innerText, 140, 74);
+
+            // 3. TABEL TOP PRODUK
+            doc.setFontSize(14); doc.text("Top 10 Produk (Profit Maker)", 14, 90);
+            doc.autoTable({
+                html: '#tabelTopProduk',
+                startY: 95,
+                theme: 'striped',
+                headStyles: { fillColor: [13, 110, 253] },
+                styles: { fontSize: 10, cellPadding: 3 },
+                columnStyles: { 
+                    2: { halign: 'right', fontStyle: 'bold' } // Hapus textColor statis disini
+                },
+                // Hook untuk cek per baris
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.column.index === 2) { // Kolom Index 2 = Profit
+                        // Ambil data asli (angka) dari global variable berdasarkan index baris
+                        let rawProfit = globalLaporanData.topProducts[data.row.index].profit;
+                        if (rawProfit < 0) data.cell.styles.textColor = colorRed;
+                        else data.cell.styles.textColor = colorGreen;
+                    }
+                }
+            });
+
+            // 4. TABEL RINCIAN HARIAN
+            let finalY = doc.lastAutoTable.finalY + 15;
+            if (finalY > 250) { doc.addPage(); finalY = 20; }
+
+            doc.setFontSize(14);
+            doc.text("Rincian Performa Harian", 14, finalY);
+
+            let bodyRows = globalLaporanData.dailyList.map(row => [
+                row.tanggal,
+                new Intl.NumberFormat('id-ID').format(row.itemCount) + " baris",
+                "Rp " + new Intl.NumberFormat('id-ID').format(row.omset),
+                "Rp " + new Intl.NumberFormat('id-ID').format(row.profit)
+            ]);
+
+            doc.autoTable({
+                head: [['Tanggal', 'Volume', 'Omset', 'Profit Bersih']],
+                body: bodyRows,
+                startY: finalY + 5,
+                theme: 'grid',
+                headStyles: { fillColor: [44, 62, 80] },
+                columnStyles: {
+                    2: { halign: 'right' },
+                    3: { halign: 'right', fontStyle: 'bold' } // Hapus textColor statis
+                },
+                // Hook untuk cek per baris
+                didParseCell: function(data) {
+                    if (data.section === 'body' && data.column.index === 3) { // Kolom Index 3 = Profit
+                        let rawProfit = globalLaporanData.dailyList[data.row.index].profit;
+                        if (rawProfit < 0) data.cell.styles.textColor = colorRed;
+                        else data.cell.styles.textColor = colorGreen;
+                    }
+                }
+            });
+
+            // Footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for(let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.text('Page ' + i + ' of ' + pageCount, 196, 285, { align: 'right' });
+                doc.text('Dicetak otomatis oleh Sistem Rio Tehnik', 14, 285);
+            }
+
+            doc.save(`Laporan_Keuangan_Lengkap_${tglMulai}.pdf`);
+        }
+
+        async function printTrxBulanan() {
+            const periode = document.getElementById('pilihBulanTrx').value; // Format: "2026-01"
+            
+            if (!periode) return alert("Silakan pilih bulan & tahun terlebih dahulu!");
+
+            const btn = document.querySelector('button[onclick="printTrxBulanan()"]');
+            const txtAsli = btn.innerHTML;
+            btn.innerHTML = "Loading..."; btn.disabled = true;
+
+            // Ambil Data dari Backend
+            const respon = await requestKeGoogle('getTransaksiByPeriode', { periode: periode });
+
+            if (respon.status === "SUKSES" && respon.data.length > 0) {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // 1. Header
+                doc.setFontSize(16); doc.text("JURNAL TRANSAKSI BULANAN", 14, 20);
+                doc.setFontSize(11); doc.text(`Periode: ${periode}`, 14, 27);
+                doc.text("Toko Rio Tehnik", 14, 33);
+                doc.line(14, 38, 196, 38);
+
+                // 2. Siapkan Data Tabel
+                let totalOmsetBulanIni = 0;
+                let bodyRows = respon.data.map(item => {
+                    totalOmsetBulanIni += item.totalBayar;
+                    
+                    // Gabungkan barang jadi string
+                    let itemsStr = item.listBarang.join("\n");
+                    
+                    return [
+                        item.waktu,
+                        item.noStruk,
+                        item.lokasi,
+                        itemsStr, // List Barang
+                        "Rp " + new Intl.NumberFormat('id-ID').format(item.totalBayar),
+                        item.kasir
+                    ];
+                });
+
+                // 3. Render Tabel
+                doc.autoTable({
+                    head: [['Waktu', 'No Struk', 'Lokasi', 'Item Belanja', 'Total', 'Kasir']],
+                    body: bodyRows,
+                    startY: 45,
+                    theme: 'grid',
+                    headStyles: { fillColor: [60, 60, 60] }, // Abu Gelap
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    columnStyles: {
+                        3: { cellWidth: 60 }, // Kolom Item agak lebar
+                        4: { halign: 'right', fontStyle: 'bold' } // Kolom Total rata kanan
+                    }
+                });
+
+                // 4. Grand Total
+                let finalY = doc.lastAutoTable.finalY + 10;
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text("GRAND TOTAL: Rp " + new Intl.NumberFormat('id-ID').format(totalOmsetBulanIni), 14, finalY);
+
+                // 5. Download
+                doc.save(`Jurnal_Transaksi_${periode}.pdf`);
+
+            } else {
+                alert("Tidak ada data transaksi pada bulan tersebut.");
+            }
+
+            btn.innerHTML = txtAsli; btn.disabled = false;
+        }
     </script>
 </body>
 </html>

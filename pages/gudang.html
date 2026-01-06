@@ -8,58 +8,80 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <style>
         body { background-color: #f8f9fa; }
-        .card-stok { transition: 0.2s; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .card-stok:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .cursor-pointer { cursor: pointer; user-select: none; }
+        .sort-icon { font-size: 0.8rem; margin-left: 5px; color: #ccc; }
+        .sort-active { color: #0d6efd; } /* Warna biru kalau aktif */
+        .card-stok:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: 0.2s; }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-dark bg-secondary mb-3"> <div class="container-fluid">
+    <nav class="navbar navbar-dark bg-secondary mb-3 shadow-sm">
+        <div class="container-fluid">
             <span class="navbar-brand fw-bold"><i class="bi bi-box-seam"></i> GUDANG</span>
-            <div class="d-flex">
-                <button id="btnBackAdmin" class="btn btn-warning btn-sm me-2 fw-bold d-none" onclick="kembaliKeAdmin()">
+            <div class="d-flex gap-2">
+                <button id="btnBackAdmin" class="btn btn-warning btn-sm fw-bold d-none" onclick="kembaliKeAdmin()">
                     <i class="bi bi-shield-lock-fill"></i> DASHBOARD
                 </button>
-                
                 <button onclick="logout()" class="btn btn-sm btn-light fw-bold">Logout</button>
             </div>
         </div>
     </nav>
 
     <div class="container">
-        <div class="row mb-4">
-            <div class="col-md-8 mx-auto">
-                <div class="input-group">
-                    <input type="text" id="keyword" class="form-control form-control-lg" placeholder="Cari nama barang..." onkeypress="if(event.key==='Enter') loadData()">
-                    <button class="btn btn-dark" onclick="loadData()">Cari Data</button>
+        
+        <div class="card shadow-sm border-0 mb-4 p-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" id="keyword" class="form-control" placeholder="Cari barang..." onkeypress="if(event.key==='Enter') loadData()">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterKategori" class="form-select" onchange="loadData()">
+                        <option value="">- Semua Kategori -</option>
+                    </select>
+                </div>
+                <div class="col-md-5 text-md-end">
+                    <button class="btn btn-dark" onclick="loadData()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                    <button class="btn btn-primary fw-bold" onclick="bukaModalTambah()"><i class="bi bi-plus-lg"></i> BARANG BARU</button>
                 </div>
             </div>
         </div>
 
-        <div class="table-responsive bg-white p-3 rounded shadow-sm">
-            <table class="table table-hover align-middle">
+        <div class="bg-white rounded shadow-sm table-responsive">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Barang</th>
-                        <th class="text-center bg-light border-start">STOK GUDANG</th>
+                        <th class="cursor-pointer" onclick="setSort('nama')">
+                            Barang <i class="bi bi-arrow-down-up sort-icon" id="sort-nama"></i>
+                        </th>
+                        <th class="cursor-pointer" onclick="setSort('kategori')">
+                            Kategori <i class="bi bi-arrow-down-up sort-icon" id="sort-kategori"></i>
+                        </th>
+                        <th class="text-center bg-light border-start cursor-pointer" onclick="setSort('stok_gudang')">
+                            STOK GUDANG <i class="bi bi-arrow-down-up sort-icon" id="sort-stok_gudang"></i>
+                        </th>
                         <th class="text-center text-muted small">Toko 1</th>
                         <th class="text-center text-muted small">Toko 2</th>
-                        <th>Aksi</th>
+                        <th class="text-end">Aksi</th>
                     </tr>
                 </thead>
-                <tbody id="tabel-body">
-                    </tbody>
+                <tbody id="tabel-body"></tbody>
             </table>
-            <div id="loading" class="text-center d-none p-3">
+            
+            <div id="loading" class="text-center d-none p-5">
                 <div class="spinner-border text-secondary"></div>
+                <p class="text-muted small mt-2">Memuat data...</p>
             </div>
         </div>
 
-        <div id="paginationArea" class="d-flex justify-content-center align-items-center gap-3 mt-3 mb-5 d-none">
+        <div id="paginationArea" class="d-flex justify-content-center align-items-center gap-3 mt-4 mb-5 d-none">
             <button class="btn btn-outline-primary" onclick="gantiHalaman(-1)" id="btnPrev">
                 <i class="bi bi-chevron-left"></i> Prev
             </button>
-            <span class="fw-bold text-muted">
+            <span class="fw-bold text-muted small">
                 Hal <span id="txtHal">1</span> / <span id="txtTotalHal">...</span>
             </span>
             <button class="btn btn-outline-primary" onclick="gantiHalaman(1)" id="btnNext">
@@ -68,17 +90,16 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalMutasi" aria-labelledby="modalTitle" aria-hidden="true">
+    <div class="modal fade" id="modalMutasi" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title fw-bold" id="modalTitle">Atur Stok</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title fw-bold">Atur Stok</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="idBarangPilih">
-                    <p class="text-muted mb-1">Barang:</p>
-                    <h5 id="namaBarangPilih" class="fw-bold mb-3">...</h5>
+                    <h5 id="namaBarangPilih" class="fw-bold mb-3 text-primary">...</h5>
 
                     <div class="mb-3">
                         <label class="form-label">Jenis Aksi</label>
@@ -109,114 +130,210 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalBarang" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-box-seam"></i> Barang Baru</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label class="form-label small text-muted">ID Barang</label>
+                            <input type="text" id="inpId" class="form-control bg-light fw-bold" readonly placeholder="AUTO">
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label small text-muted">Kategori</label>
+                            <select id="selKategori" class="form-select" onchange="cekKategoriLain()">
+                                <option value="">- Pilih -</option>
+                            </select>
+                            <input type="text" id="inpKategoriLain" class="form-control mt-1 d-none" placeholder="Ketik kategori baru...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Nama Barang</label>
+                        <input type="text" id="inpNama" class="form-control" placeholder="Contoh: Kabel Data Type C">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Modal (Rp)</label>
+                            <input type="number" id="inpModal" class="form-control" placeholder="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Jual (Rp)</label>
+                            <input type="number" id="inpJual" class="form-control" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">Satuan</label>
+                        <select id="inpSatuan" class="form-select">
+                            <option value="Pcs">Pcs</option>
+                            <option value="Set">Set</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Box">Box</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100 fw-bold" onclick="simpanBarangBaru()">SIMPAN KE DATABASE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="../assets/js/api.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // --- 1. KEAMANAN & INISIALISASI ---
+        // --- 1. INISIALISASI ---
         const role = localStorage.getItem("user_role");
-        const lokasi = localStorage.getItem("user_lokasi");
-
-        // Jika user BUKAN Gudang DAN BUKAN Owner, tendang keluar
+        
+        // Akses: GUDANG dan OWNER boleh masuk
         if (role !== "GUDANG" && role !== "OWNER") {
-            alert("Akses Ditolak! Area Khusus Gudang.");
-            window.location.href = "../index.html";
+            alert("Akses Ditolak!"); window.location.href = "../index.html";
         }
 
-        // Variabel Global
-        let modalMutasiBootstrap;
-        let halamanSaatIni = 1;
-        let totalHalaman = 1;
-        let keywordSaatIni = "";
+        if (role === "OWNER") document.getElementById("btnBackAdmin").classList.remove("d-none");
+
+        // State Management
+        let modalMutasiBootstrap, modalBarangBootstrap;
+        let halamanSaatIni = 1, totalHalaman = 1;
+        let sortState = { col: 'nama', order: 'asc' }; // Default Sort: Nama A-Z
 
         window.onload = function() {
             modalMutasiBootstrap = new bootstrap.Modal(document.getElementById('modalMutasi'));
+            modalBarangBootstrap = new bootstrap.Modal(document.getElementById('modalBarang'));
             
-            // --- LOGIKA TOMBOL ADMIN ---
-            if (localStorage.getItem("user_role") === "OWNER") {
-                document.getElementById("btnBackAdmin").classList.remove("d-none");
-            }
-            // ---------------------------
-
+            loadKategoriFilter(); // Ambil data kategori buat dropdown filter
             loadData(); 
         }
 
-        function kembaliKeAdmin() {
-            window.location.href = "admin.html";
-        }
-        
-        function logout() {
-            if(confirm("Keluar dari sistem?")) {
-                localStorage.clear();
-                window.location.href = "../index.html";
-            }
-        }
+        function kembaliKeAdmin() { window.location.href = "admin.html"; }
+        function logout() { localStorage.clear(); window.location.href = "../index.html"; }
 
-        // --- 2. LOAD DATA DENGAN PAGINATION ---
+        // --- 2. LOAD DATA (CARI, FILTER, SORT, PAGING) ---
         async function loadData(resetHalaman = true) {
-            // Reset ke halaman 1 jika pencarian baru
-            if (resetHalaman) {
-                halamanSaatIni = 1;
-                let input = document.getElementById('keyword');
-                keywordSaatIni = input ? input.value : "";
-            }
+            if (resetHalaman) halamanSaatIni = 1;
+            
+            // Ambil Value
+            const key = document.getElementById('keyword').value;
+            const kat = document.getElementById('filterKategori').value;
 
             // UI Loading
-            document.getElementById('tabel-body').innerHTML = `<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>`;
+            document.getElementById('tabel-body').innerHTML = "";
+            document.getElementById('loading').classList.remove('d-none');
             document.getElementById('paginationArea').classList.add('d-none');
 
-            // Panggil API cariBarang (yang sudah support pagination)
+            // Request ke Google
             const respon = await requestKeGoogle('cariBarang', { 
-                keyword: keywordSaatIni,
-                page: halamanSaatIni
+                keyword: key,
+                page: halamanSaatIni,
+                kategori: kat,
+                sortBy: sortState.col,
+                sortOrder: sortState.order
             });
-            
+
+            document.getElementById('loading').classList.add('d-none');
+
             if(respon.status === "SUKSES") {
                 renderTabel(respon.data);
-                
-                // Setup Pagination jika ada meta data
-                if (respon.meta) {
-                    setupPagination(respon.meta);
-                }
+                if (respon.meta) setupPagination(respon.meta);
             } else {
-                document.getElementById('tabel-body').innerHTML = `<tr><td colspan="5" class="text-center text-danger">Gagal memuat data.</td></tr>`;
+                document.getElementById('tabel-body').innerHTML = `<tr><td colspan="6" class="text-center text-danger">Gagal: ${respon.pesan}</td></tr>`;
             }
         }
 
         function renderTabel(data) {
             let html = "";
             if (data.length === 0) {
-                html = `<tr><td colspan="5" class="text-center py-3 text-muted">Barang tidak ditemukan.</td></tr>`;
+                html = `<tr><td colspan="6" class="text-center py-5 text-muted">Data tidak ditemukan.</td></tr>`;
             } else {
                 data.forEach(item => {
                     html += `
-                        <tr>
-                            <td>
-                                <div class="fw-bold text-dark">${item.nama}</div>
-                                <span class="badge bg-secondary" style="font-weight:normal">${item.id}</span>
-                            </td>
-                            <td class="text-center bg-light border-start border-end">
-                                <span class="fw-bold fs-5 text-primary">${item.stok_gudang}</span>
-                            </td>
-                            <td class="text-center text-muted align-middle">${item.stok_toko1}</td>
-                            <td class="text-center text-muted align-middle">${item.stok_toko2}</td>
-                            <td class="text-end align-middle">
-                                <button class="btn btn-sm btn-primary" onclick="bukaModal('${item.id}', '${item.nama}')">
-                                    <i class="bi bi-arrow-left-right"></i> Atur Stok
-                                </button>
-                            </td>
-                        </tr>
-                    `;
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-dark">${item.nama}</div>
+                            <span class="badge bg-secondary" style="font-weight:normal; font-size:0.7rem">${item.id}</span>
+                        </td>
+                        <td><span class="badge bg-light text-dark border">${item.kategori}</span></td>
+                        <td class="text-center bg-light border-start border-end">
+                            <span class="fw-bold fs-5 text-primary">${item.stok_gudang}</span>
+                        </td>
+                        <td class="text-center text-muted">${item.stok_toko1}</td>
+                        <td class="text-center text-muted">${item.stok_toko2}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-primary" onclick="bukaModalMutasi('${item.id}', '${item.nama}')">
+                                <i class="bi bi-arrow-left-right"></i> Atur Stok
+                            </button>
+                        </td>
+                    </tr>`;
                 });
             }
             document.getElementById('tabel-body').innerHTML = html;
         }
 
-        // --- 3. NAVIGASI HALAMAN ---
+        // --- 3. SORTING LOGIC ---
+        function setSort(columnName) {
+            // Jika klik kolom yg sama, balik urutan (asc <-> desc)
+            if (sortState.col === columnName) {
+                sortState.order = (sortState.order === 'asc') ? 'desc' : 'asc';
+            } else {
+                sortState.col = columnName;
+                sortState.order = 'asc';
+            }
+            updateSortUI();
+            loadData(true); // Reset ke halaman 1
+        }
+
+        function updateSortUI() {
+            // Reset semua icon
+            document.querySelectorAll('.sort-icon').forEach(el => el.classList.remove('sort-active'));
+            // Set icon aktif
+            let icon = document.getElementById('sort-' + sortState.col);
+            if(icon) {
+                icon.className = (sortState.order === 'asc') 
+                    ? "bi bi-sort-alpha-down sort-icon sort-active" 
+                    : "bi bi-sort-alpha-down-alt sort-icon sort-active";
+                if(sortState.col === 'stok_gudang') { // Khusus angka pakai icon numeric
+                    icon.className = (sortState.order === 'asc') 
+                        ? "bi bi-sort-numeric-down sort-icon sort-active" 
+                        : "bi bi-sort-numeric-down-alt sort-icon sort-active";
+                }
+            }
+        }
+
+        // --- 4. FILTER KATEGORI (AMBIL DARI SERVER) ---
+        async function loadKategoriFilter() {
+            const respon = await requestKeGoogle('getDataFormBarang');
+            const selFilter = document.getElementById('filterKategori');
+            const selModal = document.getElementById('selKategori'); // Dropdown di Modal Tambah
+
+            if(respon.status === "SUKSES") {
+                respon.kategori.forEach(kat => {
+                    // Isi Filter
+                    let opt = document.createElement('option');
+                    opt.value = kat; opt.innerText = kat;
+                    selFilter.appendChild(opt);
+
+                    // Isi Modal Tambah
+                    let opt2 = document.createElement('option');
+                    opt2.value = kat; opt2.innerText = kat;
+                    selModal.appendChild(opt2);
+                });
+                
+                // Tambah opsi manual di modal
+                let optLain = document.createElement('option');
+                optLain.value = "LAINNYA"; optLain.innerText = "+ Kategori Baru...";
+                selModal.appendChild(optLain);
+            }
+        }
+
+        // --- 5. PAGINATION ---
         function gantiHalaman(n) {
-            let targetHal = halamanSaatIni + n;
-            if (targetHal < 1 || targetHal > totalHalaman) return;
-            halamanSaatIni = targetHal;
-            loadData(false); // False artinya jangan reset ke halaman 1
+            let target = halamanSaatIni + n;
+            if (target < 1 || target > totalHalaman) return;
+            halamanSaatIni = target;
+            loadData(false);
         }
 
         function setupPagination(meta) {
@@ -228,29 +345,74 @@
             document.getElementById('btnNext').disabled = (meta.page >= meta.totalPage);
         }
 
-        // --- 4. FITUR MUTASI (TAMBAH / PINDAH STOK) ---
-        function bukaModal(id, nama) {
+        // --- 6. LOGIKA TAMBAH BARANG (BARU) ---
+        function bukaModalTambah() {
+            document.getElementById('inpId').value = "AUTO";
+            document.getElementById('inpNama').value = "";
+            document.getElementById('inpModal').value = "";
+            document.getElementById('inpJual').value = "";
+            document.getElementById('selKategori').value = "";
+            document.getElementById('inpKategoriLain').classList.add('d-none');
+            modalBarangBootstrap.show();
+        }
+
+        function cekKategoriLain() {
+            const val = document.getElementById('selKategori').value;
+            const inp = document.getElementById('inpKategoriLain');
+            if(val === "LAINNYA") {
+                inp.classList.remove('d-none'); inp.focus();
+            } else {
+                inp.classList.add('d-none');
+            }
+        }
+
+        async function simpanBarangBaru() {
+            const nama = document.getElementById('inpNama').value;
+            let kategori = document.getElementById('selKategori').value;
+            if(kategori === "LAINNYA") kategori = document.getElementById('inpKategoriLain').value;
+
+            if(!nama || !kategori) return alert("Nama dan Kategori wajib diisi!");
+
+            const payload = {
+                id: "AUTO",
+                nama: nama,
+                kategori: kategori,
+                modal: document.getElementById('inpModal').value,
+                jual: document.getElementById('inpJual').value,
+                satuan: document.getElementById('inpSatuan').value
+            };
+
+            const btn = document.querySelector('#modalBarang .btn-primary');
+            btn.disabled = true; btn.innerText = "Menyimpan...";
+
+            const respon = await requestKeGoogle('tambahBarang', { payload: payload });
+
+            if(respon.status === "SUKSES") {
+                alert("✅ Barang Berhasil Ditambahkan!");
+                modalBarangBootstrap.hide();
+                loadData(); // Refresh tabel
+                // Opsional: Reload halaman agar kategori baru masuk ke dropdown filter
+                // location.reload(); 
+            } else {
+                alert("❌ Gagal: " + respon.pesan);
+            }
+            btn.disabled = false; btn.innerText = "SIMPAN KE DATABASE";
+        }
+
+        // --- 7. LOGIKA MUTASI (LAMA) ---
+        function bukaModalMutasi(id, nama) {
             document.getElementById('idBarangPilih').value = id;
             document.getElementById('namaBarangPilih').innerText = nama;
             document.getElementById('jumlahInput').value = "";
-            
-            // Reset pilihan ke default
             document.getElementById('jenisAksi').value = "MASUK_SUPPLIER";
-            cekJenisAksi(); // Sembunyikan dropdown toko
-            
+            cekJenisAksi();
             modalMutasiBootstrap.show();
         }
 
         function cekJenisAksi() {
             const jenis = document.getElementById('jenisAksi').value;
-            const blok = document.getElementById('blokTujuan');
-            
-            // Jika KIRIM_TOKO, munculkan pilihan toko mana
-            if(jenis === 'KIRIM_TOKO') {
-                blok.classList.remove('d-none');
-            } else {
-                blok.classList.add('d-none');
-            }
+            if(jenis === 'KIRIM_TOKO') document.getElementById('blokTujuan').classList.remove('d-none');
+            else document.getElementById('blokTujuan').classList.add('d-none');
         }
 
         async function simpanMutasi() {
@@ -259,37 +421,23 @@
             const jumlah = document.getElementById('jumlahInput').value;
             const tujuan = document.getElementById('tujuanToko').value;
 
-            // Validasi
-            if(!jumlah || jumlah <= 0) return alert("Jumlah wajib diisi minimal 1!");
-            if(jenis === 'KIRIM_TOKO' && tujuan === "") return alert("Pilih Toko Tujuan!");
+            if(!jumlah || jumlah <= 0) return alert("Jumlah minimal 1!");
+            if(jenis === 'KIRIM_TOKO' && !tujuan) return alert("Pilih Toko Tujuan!");
 
-            // Efek Loading Tombol
-            const btn = document.querySelector('.modal-footer .btn-primary');
-            const txtLama = btn.innerText;
-            btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Proses...`;
-            btn.disabled = true;
+            const btn = document.querySelector('#modalMutasi .btn-primary');
+            btn.disabled = true; btn.innerText = "Proses...";
 
-            const payload = {
-                idBarang: id,
-                jenis: jenis, // MASUK_SUPPLIER atau KIRIM_TOKO
-                jumlah: jumlah,
-                tujuan: tujuan,
-                petugas: role // Kirim info siapa yang input
-            };
-
+            const payload = { idBarang: id, jenis: jenis, jumlah: jumlah, tujuan: tujuan, petugas: role };
             const respon = await requestKeGoogle('prosesMutasi', { payload: payload });
 
             if(respon.status === "SUKSES") {
-                alert("✅ Stok Berhasil Diupdate!");
+                alert("✅ Stok Terupdate!");
                 modalMutasiBootstrap.hide();
-                loadData(false); // Refresh data (tetap di halaman yg sama)
+                loadData(false); // Refresh tanpa reset halaman
             } else {
-                alert("❌ Gagal: " + respon.pesan);
+                alert("❌ Error: " + respon.pesan);
             }
-
-            // Kembalikan tombol
-            btn.innerText = txtLama;
-            btn.disabled = false;
+            btn.disabled = false; btn.innerText = "SIMPAN";
         }
     </script>
 </body>
