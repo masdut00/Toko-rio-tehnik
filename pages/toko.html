@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../assets/css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> -->
 </head>
 <body>
 
@@ -161,6 +161,24 @@
         let totalHalaman = 1;
         let keywordSaatIni = ""; 
         let modalBayarBootstrap;
+
+        const INFO_TOKO = {
+            "Toko1": {
+                nama: "RIO TEHNIK PUSAT",
+                alamat: "Jl. Raya Ciputat No. 1",
+                telp: "WA: 0812-XXXX-XXXX"
+            },
+            "Toko2": {
+                nama: "RIO TEHNIK CABANG",
+                alamat: "Jl. Raya Pamulang No. 5",
+                telp: "WA: 0813-YYYY-YYYY"
+            },
+            "Gudang": { // Jaga-jaga kalau gudang iseng ngeprint
+                nama: "RIO TEHNIK GUDANG",
+                alamat: "Area Pergudangan",
+                telp: "-"
+            }
+        };
 
         // Cek Sesi User
         const role = localStorage.getItem("user_role");
@@ -448,13 +466,21 @@
 
         // --- 5. PROSES TRANSAKSI KE GOOGLE ---
         async function prosesTransaksi() {
+            // Ambil nilai uang dulu sebelum loading
+            let total = parseInt(document.getElementById('listKeranjangModal').dataset.total);
+            let tunaiInput = document.getElementById('inpUang').value;
+            let tunai = tunaiInput === "" ? 0 : parseInt(tunaiInput);
+
+            // Validasi uang (Jaga-jaga user iseng inspect element enable button)
+            if (tunai < total) return alert("Uang pembayaran kurang!");
+            
             if(!confirm("Proses pembayaran dan cetak struk?")) return;
 
             const btn = document.getElementById('btnProsesBayar');
             btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Loading...`;
             btn.disabled = true;
 
-            // Siapkan Data
+            // Siapkan Payload (Sama seperti kodemu)
             const payload = {
                 lokasi: lokasi,
                 kasir: role,
@@ -462,7 +488,7 @@
                     id: k.id,
                     nama: k.nama,
                     qty: k.qty,
-                    modal: 0, // Backend bisa handle
+                    modal: 0, // Backend handle
                     jual: k.harga
                 }))
             };
@@ -471,60 +497,90 @@
             const respon = await requestKeGoogle('simpanTransaksi', { payload: payload });
 
             if(respon && respon.status === "SUKSES") {
-                // Ambil info uang untuk struk
-                let total = parseInt(document.getElementById('listKeranjangModal').dataset.total);
-                let tunai = parseInt(document.getElementById('inpUang').value);
+                // --- PERUBAHAN DISINI: PANGGIL PRINT RAWBT ---
+                let kembali = tunai - total;
                 
-                // Cetak Struk
-                await downloadStrukImage(respon.noStruk, total, tunai);
-                
-                // Reset State
-                alert("✅ Transaksi Sukses!");
-                modalBayarBootstrap.hide();
-                keranjang = [];
-                updateUIKeranjang();
-                cari(false); // Refresh stok di layar
+                // 1. Perintahkan HP buka RawBT & Print
+                printStrukRawBT(respon.noStruk, total, tunai, kembali);
+
+                // 2. Beri jeda 1 detik agar RawBT sempat terbuka sebelum alert muncul / reset data
+                setTimeout(() => {
+                    // Reset State setelah print trigger
+                    modalBayarBootstrap.hide();
+                    keranjang = [];
+                    updateUIKeranjang();
+                    cari(false); // Refresh stok
+                    
+                    // Reset Form Modal
+                    document.getElementById('inpUang').value = "";
+                    document.getElementById('txtKembalian').innerText = "Rp 0";
+                    
+                    // Info Sukses (Opsional, karena user sudah lihat RawBT terbuka)
+                    // alert("✅ Transaksi tersimpan!"); 
+                }, 1000); 
+
             } else {
                 alert("❌ Gagal: " + (respon ? respon.pesan : "Error Koneksi"));
             }
 
+            // Kembalikan tombol (jika error)
             btn.innerHTML = `<i class="bi bi-printer"></i> PROSES & CETAK`;
             btn.disabled = false;
         }
 
         // --- 6. GENERATE STRUK GAMBAR ---
-        async function downloadStrukImage(noStruk, total, tunai) {
-            // Isi Data ke HTML Struk Tersembunyi
-            const now = new Date();
-            document.getElementById('struk-tanggal').innerText = now.toLocaleString('id-ID');
-            document.getElementById('struk-kasir').innerText = `Kasir: ${role} | ${noStruk}`;
-            
-            let htmlItems = "";
-            keranjang.forEach(item => {
-                htmlItems += `
-                <div class="struk-row">
-                    <span>${item.nama}</span>
-                    <span>${item.qty} x ${ribuan(item.harga)}</span>
-                </div>`;
-            });
-            document.getElementById('struk-items').innerHTML = htmlItems;
-            
-            document.getElementById('struk-total').innerText = "Rp " + ribuan(total);
-            document.getElementById('struk-tunai').innerText = "Rp " + ribuan(tunai);
-            document.getElementById('struk-kembali').innerText = "Rp " + ribuan(tunai - total);
+        function printStrukRawBT(noStruk, total, tunai, kembali) {
+            // 1. Ambil Info Toko berdasarkan Global Variable 'lokasi'
+            // (Variable 'lokasi' sudah kamu deklarasikan di bagian atas script aslimu)
+            let info = INFO_TOKO[lokasi] || INFO_TOKO["Toko1"];
+            let waktu = new Date().toLocaleString('id-ID');
 
-            // Convert ke Gambar
-            const areaStruk = document.getElementById('area-struk');
-            try {
-                const canvas = await html2canvas(areaStruk, { scale: 2 });
-                const link = document.createElement('a');
-                link.download = `STRUK-${noStruk}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            } catch (err) {
-                console.error("Gagal cetak struk", err);
-                alert("Transaksi tersimpan, tapi gagal download struk (Browser tidak support).");
-            }
+            // 2. Susun Format Struk (HTML Sederhana untuk RawBT)
+            let s = ""; // s adalah string struk
+
+            // Header
+            s += "<center>";
+            s += "<b>" + info.nama + "</b><br>";
+            s += "<font size='1'>" + info.alamat + "</font><br>";
+            s += "<font size='1'>" + info.telp + "</font><br>";
+            s += "--------------------------------<br>";
+            s += "</center>";
+
+            // Info Transaksi
+            s += "No: " + noStruk + "<br>";
+            s += "Tgl: " + waktu + "<br>";
+            s += "Kasir: " + role + "<br>"; // Variable 'role' sudah ada di script aslimu
+            s += "--------------------------------<br>";
+
+            // Item Belanja (Loop dari array global 'keranjang')
+            keranjang.forEach(item => {
+                let subtotal = item.qty * item.harga;
+                s += "<b>" + item.nama + "</b><br>";
+                // Format: 2 x 50.000 = 100.000
+                s += item.qty + " x " + ribuan(item.harga) + " = <b>" + ribuan(subtotal) + "</b><br>";
+            });
+
+            s += "--------------------------------<br>";
+
+            // Total & Pembayaran (Rata Kanan)
+            s += "<div style='text-align:right'>";
+            s += "TOTAL : <b>Rp " + ribuan(total) + "</b><br>";
+            s += "TUNAI : Rp " + ribuan(tunai) + "<br>";
+            s += "KEMBALI : Rp " + ribuan(kembali) + "<br>";
+            s += "</div>";
+
+            // Footer
+            s += "<center>";
+            s += "--------------------------------<br>";
+            s += "Barang yang sudah dibeli<br>tidak dapat ditukar/dikembalikan.<br>";
+            s += "<b>TERIMA KASIH</b>";
+            s += "<br><br>"; // Spasi ekstra untuk sobekan kertas
+            s += "</center>";
+
+            // 3. Eksekusi Print (Buka Aplikasi RawBT)
+            // Encode URI component agar karakter spesial aman
+            let urlRawBT = "rawbt:data=" + encodeURIComponent(s) + "&type=html";
+            window.location.href = urlRawBT;
         }
 
         // Helper Format Ribuan
